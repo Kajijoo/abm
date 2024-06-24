@@ -10,14 +10,14 @@ class LearningAgent(Agent):
     def __init__(self, unique_id, model, row, learning_model):
         super().__init__(unique_id, model)
         self.row = row
-        self.learning_model = learning_model  # 'RW' or 'TD'
+        self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
         self.learning_rate = 0.1 # Rate of learning
         self.extinction_rate = 1.0 # Standard for RW extinction = 1, typically <1
         self.delta = 0.0 # Standard for delta = 0. Standard logstic for delta = 1, S-curve 0 < delta < 1
         self.beta = 1.0 # Responsivity to food in TD learning
-        self.value_low = 0.0  # Initial value outcome
-        self.value_high = 0.0 # Initial value outcome
-        self.ptype = None  # The current patch color where the agent is located
+        self.value_low = 0.001  # Initial value outcome
+        self.value_high = 0.001 # Initial value outcome
+        self.ptype = None  # The current patch type where the agent is located
         self.food_consumed = None  # Food consumed status ('L' or 'H')
         self.p_low = 0.2  # True reward value of food type L
         self.p_high = 0.8  # True reward value of food type H
@@ -47,7 +47,7 @@ class LearningAgent(Agent):
 
 #This is the updated RW so it is similar to TD, but we need to think about when and how extinction kicks in.
 #Right now extinction for opposite food (H or L) kicks in when one is consumed, because there is no situation where nothing is consumed.
-    def update_affect_rw(self):
+    def rw_e(self):
         if self.food_consumed == "L":
             self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.p_low - self.value_low))
             self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * self.extinction_rate * (0 - self.value_high))
@@ -55,27 +55,30 @@ class LearningAgent(Agent):
             self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.p_high - self.value_high))
             self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * self.extinction_rate * (0 - self.value_low))  
 
-    def update_reward_td(self):
+    def td(self):
         if self.food_consumed == 'L':
             self.value_low = (self.value_low + self.learning_rate * (self.beta * self.p_low - self.value_low))
         else:
             self.value_high = (self.value_high + self.learning_rate * (self.beta * self.p_high - self.value_high))
 
 
-#Get B responsivity based on BMI. @Yara, can you show me how to rewrite this into one line? 
-    def get_beta(self):
-        if self.bmi < 18.5:
-            return 1.25
-        elif 18.5 <= self.bmi <= 24.9:
-            return 1
-        elif 25 <= self.bmi <= 29.9:
-            return 0.75
+#RW without extinction
+    def rw(self):
+        if self.food_consumed == "L":
+            self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.p_low - self.value_low))
         else:
-            return 0.5
+            self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.p_high - self.value_high))
+
+
+#Get B responsivity based on BMI.
+    #def get_beta(self):
+        #beta = formula here
+        #return beta 
+        
 
 #THIS WILL BE FOR 2ND PAPER. INTRODUCING BETA IN RESCORLA WAGNER MODEL FOR SUBJECTIVE REWARD EXPERIENCE BASED ON BMI.
 
-    def update_affect_rw_b(self):
+    def rw_e_b(self):
         self.get_beta()
         if self.food_consumed == "L":
             self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.beta * self.p_low - self.value_low))
@@ -93,12 +96,17 @@ class LearningAgent(Agent):
         #print(f"My RW reward learning is: {str(self.affect)}")
 
         #Update learning
-        if self.learning_model == 'RW':
-            self.update_affect_rw()
+        if self.learning_model == 'RWE':
             self.eat()
+            self.rw_e()
+
         elif self.learning_model == 'TD':
-            self.update_reward_td()
             self.eat()
+            self.td()
+
+        elif self.learning_model == 'RW':
+            self.eat()
+            self.rw()
 
 class Patch(Agent):
     def __init__(self, unique_id, model, patch_type):
@@ -134,45 +142,44 @@ class LearningModel(Model):
 
         #Add patches with types based on different distributions
         if distribute_patches == 'random':
-            self.distribute_randomly()
+            for x in range(self.grid.width):
+                for y in range(self.grid.height):
+                    patch_type = random.choice(["HH", "LL", "HL"])
+                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    self.grid.place_agent(patch, (x,y))
         elif distribute_patches == 'gradient_h':
-            self.distribute_gradient_h()
+            for y in range(self.grid.height):
+                for x in range(self.grid.width):
+                    prob_hh = x / self.grid.width
+                    if random.random() < prob_hh:
+                        patch_type = "HL"
+                    else:
+                        patch_type = "HH"
+                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    self.grid.place_agent(patch, (x, y))           
         elif distribute_patches == 'gradient_l':
-            self.distribute_gradient_l()
+            for y in range(self.grid.height):
+                for x in range(self.grid.width):
+                    prob_ll = x / self.grid.width
+                    if random.random() < prob_ll:
+                        patch_type = "HL"
+                    else:
+                        patch_type = "LL"
+                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    self.grid.place_agent(patch, (x, y))
+        elif distribute_patches == 'weekday':
+            for x in range(self.grid.width):
+                for y in range(self.grid.height):
+                    if (x % 7) < 5:
+                        patch_type = "LL"
+                    else:
+                        patch_type = ("HH")
+                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    self.grid.place_agent(patch, (x, y))
 
         self.datacollector = DataCollector(
             agent_reporters={"Value_Low": "value_low", "Value_High": "value_high"}
         )
-
-    def distribute_randomly(self):
-        patch_types = ["HH", "LL", "HL"]
-        for x in range(self.grid.width):
-            for y in range(self.grid.height):
-                patch_type = random.choice(patch_types)
-                patch = Patch(f'patch_{x}_{y}', self, patch_type)
-                self.grid.place_agent(patch, (x,y))
-
-    def distribute_gradient_h(self):
-        for y in range(self.grid.height):
-            for x in range(self.grid.width):
-                prob_hh = x / self.grid.width
-                if random.random() < prob_hh:
-                    patch_type = "HL"
-                else:
-                    patch_type = "HH"
-                patch = Patch(f'patch_{x}_{y}', self, patch_type)
-                self.grid.place_agent(patch, (x, y))
-
-    def distribute_gradient_l(self):
-        for y in range(self.grid.height):
-            for x in range(self.grid.width):
-                prob_ll = x / self.grid.width
-                if random.random() < prob_ll:
-                    patch_type = "HL"
-                else:
-                    patch_type = "LL"
-                patch = Patch(f'patch_{x}_{y}', self, patch_type)
-                self.grid.place_agent(patch, (x, y))
 
     def step(self):
         self.datacollector.collect(self)
