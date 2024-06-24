@@ -72,8 +72,11 @@ class LearningAgent(Agent):
 
 #Get B responsivity based on BMI.
     #def get_beta(self):
-        #beta = formula here
-        #return beta 
+        #a = -0.01
+        #b = 0.4
+        #c = 0.8
+        #return a * bmi**2 + b * bmi + c
+
         
 
 #THIS WILL BE FOR 2ND PAPER. INTRODUCING BETA IN RESCORLA WAGNER MODEL FOR SUBJECTIVE REWARD EXPERIENCE BASED ON BMI.
