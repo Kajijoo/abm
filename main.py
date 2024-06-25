@@ -11,7 +11,7 @@ class LearningAgent(Agent):
         super().__init__(unique_id, model)
         self.row = row
         self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
-        self.learning_rate = 0.1 # Rate of learning
+        self.learning_rate = 0.4 # Rate of learning
         self.extinction_rate = 1.0 # Standard for RW extinction = 1, typically <1
         self.delta = 0.0 # Standard for delta = 0. Standard logstic for delta = 1, S-curve 0 < delta < 1
         self.beta = 1.0 # Responsivity to food in TD learning
@@ -19,8 +19,8 @@ class LearningAgent(Agent):
         self.value_high = 0.001 # Initial value outcome
         self.ptype = None  # The current patch type where the agent is located
         self.food_consumed = None  # Food consumed status ('L' or 'H')
-        self.p_low = 0.2  # True reward value of food type L
-        self.p_high = 0.8  # True reward value of food type H
+        self.p_low = 0.6  # True reward value of food type L
+        self.p_high = 0.9  # True reward value of food type H
         #self.bmi = bmi
 
     def move(self): # Move agent to the right in grid space
@@ -132,6 +132,7 @@ class LearningModel(Model):
         self.grid = MultiGrid(width, height, True)
         self.schedule = SimultaneousActivation(self)
         self.learning_model = learning_model
+        self.theta = 1.5 #determines ratio high to low palatability foods
         
         if seed is not None:
             random.seed(seed)
@@ -150,6 +151,38 @@ class LearningModel(Model):
                     patch_type = random.choice(["HH", "LL", "HL"])
                     patch = Patch(f'patch_{x}_{y}', self, patch_type)
                     self.grid.place_agent(patch, (x,y))
+        elif distribute_patches == 'random_t':
+            total_patches = 2 * self.grid.width * self.grid.height
+            total_h = int(total_patches * (self.theta / (1 + self.theta)))
+            total_l = total_patches - total_h
+
+            #print(f"Total patches: {total_patches}, Total H: {total_h}, Total L: {total_l}")
+
+            patch_list = ['H'] * total_h + ['L'] * total_l
+            random.shuffle(patch_list)
+
+            #print(f"Shuffled patch list: {patch_list}")
+
+            # Assign H and L to HH, LL, or HL cells randomly
+            for x in range(self.grid.width):
+                for y in range(self.grid.height):
+                    if len(patch_list) < 2:
+                        break  # Not enough patches to form another cell
+                    # Randomly select two patches to form a cell
+                    first_patch = patch_list.pop()
+                    second_patch = patch_list.pop()
+                    # Determine the patch type
+                    if first_patch == 'H' and second_patch == 'H':
+                        patch_type = 'HH'
+                    elif first_patch == 'L' and second_patch == 'L':
+                        patch_type = 'LL'
+                    else:
+                        patch_type = 'HL'
+                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    self.grid.place_agent(patch, (x, y))
+
+                    #print(f"Placing patch of type {patch_type} at ({x}, {y})")
+
         elif distribute_patches == 'gradient_h':
             for y in range(self.grid.height):
                 for x in range(self.grid.width):
