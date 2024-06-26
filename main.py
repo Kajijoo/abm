@@ -23,10 +23,12 @@ class LearningAgent(Agent):
         self.p_high = 0.9  # True reward value of food type H
         #self.bmi = bmi
 
+
     def move(self): # Move agent to the right in grid space
         x, y = self.pos
         new_x = (x + 1) % self.model.grid.width
         self.model.grid.move_agent(self, (new_x, y))
+
 
     def eat(self): #Eat procedure for TDW copied from the Hammond et al. 2012 NetLogo model
         #Get current patch type
@@ -45,15 +47,24 @@ class LearningAgent(Agent):
             if random.random() < 0.05:
                 self.food_consumed = "L" if self.food_consumed == "H" else "H"
 
-#This is the updated RW so it is similar to TD, but we need to think about when and how extinction kicks in.
-#Right now extinction for opposite food (H or L) kicks in when one is consumed, because there is no situation where nothing is consumed.
+
     def rw_e(self):
-        if self.food_consumed == "L":
-            self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.p_low - self.value_low))
-            self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * self.extinction_rate * (0 - self.value_high))
+    # Get the patch type of the current agent's position
+        if self.ptype == "HL":
+            # Apply extinction logic only if the agent is on an "HL" patch, because exposure without consumption is required for extinction to kick in.
+            if self.food_consumed == "L":
+                self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.p_low - self.value_low))
+                self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * self.extinction_rate * (0 - self.value_high))
+            else:
+                self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.p_high - self.value_high))
+                self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * self.extinction_rate * (0 - self.value_low))
         else:
-            self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.p_high - self.value_high))
-            self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * self.extinction_rate * (0 - self.value_low))  
+            # No extinction logic applied if not on an "HL" patch
+            if self.food_consumed == "L":
+                self.value_low = self.value_low + (self.learning_rate * (self.p_low - self.value_low))
+            else:
+                self.value_high = self.value_high + (self.learning_rate * (self.p_high - self.value_high))
+
 
     def td(self):
         if self.food_consumed == 'L':
@@ -69,17 +80,14 @@ class LearningAgent(Agent):
         else:
             self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.p_high - self.value_high))
 
-
+        
+#THIS WILL BE FOR 2ND PAPER. INTRODUCING BETA IN RESCORLA WAGNER MODEL FOR SUBJECTIVE REWARD EXPERIENCE BASED ON BMI.
 #Get B responsivity based on BMI.
     #def get_beta(self):
         #a = -0.01
         #b = 0.4
         #c = 0.8
         #return a * bmi**2 + b * bmi + c
-
-        
-
-#THIS WILL BE FOR 2ND PAPER. INTRODUCING BETA IN RESCORLA WAGNER MODEL FOR SUBJECTIVE REWARD EXPERIENCE BASED ON BMI.
 
     def rw_e_b(self):
         self.get_beta()
@@ -111,6 +119,7 @@ class LearningAgent(Agent):
             self.eat()
             self.rw()
 
+
 class Patch(Agent):
     def __init__(self, unique_id, model, patch_type):
         super().__init__(unique_id, model)
@@ -124,6 +133,7 @@ class Patch(Agent):
         elif self.type == "HL":
             return "purple"
         return "white"
+
 
 class LearningModel(Model):
     def __init__(self, N, width, height, learning_model='RW', distribute_patches = 'random', seed = None):
@@ -146,12 +156,6 @@ class LearningModel(Model):
 
         #Add patches with types based on different distributions
         if distribute_patches == 'random':
-            for x in range(self.grid.width):
-                for y in range(self.grid.height):
-                    patch_type = random.choice(["HH", "LL", "HL"])
-                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
-                    self.grid.place_agent(patch, (x,y))
-        elif distribute_patches == 'random_t':
             total_patches = 2 * self.grid.width * self.grid.height
             total_h = int(total_patches * (self.theta / (1 + self.theta)))
             total_l = total_patches - total_h
@@ -183,7 +187,7 @@ class LearningModel(Model):
 
                     #print(f"Placing patch of type {patch_type} at ({x}, {y})")
 
-        elif distribute_patches == 'gradient_h':
+        elif distribute_patches == 'gradient_h': #distribute food according to gradient: HH to HL. 
             for y in range(self.grid.height):
                 for x in range(self.grid.width):
                     prob_hh = x / self.grid.width
@@ -192,8 +196,9 @@ class LearningModel(Model):
                     else:
                         patch_type = "HH"
                     patch = Patch(f'patch_{x}_{y}', self, patch_type)
-                    self.grid.place_agent(patch, (x, y))           
-        elif distribute_patches == 'gradient_l':
+                    self.grid.place_agent(patch, (x, y)) 
+
+        elif distribute_patches == 'gradient_l': #distribute food according to gradient: LL to HL. 
             for y in range(self.grid.height):
                 for x in range(self.grid.width):
                     prob_ll = x / self.grid.width
@@ -203,11 +208,14 @@ class LearningModel(Model):
                         patch_type = "LL"
                     patch = Patch(f'patch_{x}_{y}', self, patch_type)
                     self.grid.place_agent(patch, (x, y))
-        elif distribute_patches == 'weekday':
+
+        elif distribute_patches == 'weekday': #distribute food according to healthy weekdays, doubt on friday, and unhealthy weekend.
             for x in range(self.grid.width):
                 for y in range(self.grid.height):
-                    if (x % 7) < 5:
+                    if (x % 7) < 4:
                         patch_type = "LL"
+                    elif (x % 7) == 4:
+                        patch_type = "HL"
                     else:
                         patch_type = ("HH")
                     patch = Patch(f'patch_{x}_{y}', self, patch_type)
