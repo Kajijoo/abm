@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 class LearningAgent(Agent):
-    def __init__(self, unique_id, model, row, learning_model):
+    def __init__(self, unique_id, model, row, learning_model, epsilon):
         super().__init__(unique_id, model)
         self.row = row
         self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
@@ -21,6 +21,7 @@ class LearningAgent(Agent):
         self.food_consumed = None  # Food consumed status ('L' or 'H')
         self.p_low = 0.6  # True reward value of food type L
         self.p_high = 0.9  # True reward value of food type H
+        self.epsilon = epsilon
         #self.bmi = bmi
 
 
@@ -44,7 +45,7 @@ class LearningAgent(Agent):
                 self.food_consumed = "L"
             else:
                 self.food_consumed = "H"
-            if random.random() < 0.05:
+            if random.random() < self.epsilon:
                 self.food_consumed = "L" if self.food_consumed == "H" else "H"
 
 
@@ -136,12 +137,13 @@ class Patch(Agent):
 
 
 class LearningModel(Model):
-    def __init__(self, N, width, height, learning_model='RW', distribute_patches = 'random', seed = None):
+    def __init__(self, N, width, height, learning_model='RW', distribute_patches = 'random', seed = None, epsilon = 0.05):
         super().__init__()
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
         self.schedule = SimultaneousActivation(self)
         self.learning_model = learning_model
+        self.epsilon = epsilon
         self.theta = 1.5 #determines ratio high to low palatability foods
         
         if seed is not None:
@@ -150,7 +152,7 @@ class LearningModel(Model):
 
         #Create agents 
         for i in range(self.num_agents):
-            agent = LearningAgent(i, self, row=i, learning_model=learning_model)
+            agent = LearningAgent(i, self, row=i, learning_model=learning_model, epsilon=epsilon)
             self.grid.place_agent(agent, (0, i))
             self.schedule.add(agent)
 
