@@ -80,10 +80,9 @@ class LearningAgent(Agent):
             self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.p_low - self.value_low))
         else:
             self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.p_high - self.value_high))
-
         
 #THIS WILL BE FOR 2ND PAPER. INTRODUCING BETA IN RESCORLA WAGNER MODEL FOR SUBJECTIVE REWARD EXPERIENCE BASED ON BMI.
-#Get B responsivity based on BMI.
+#Get B responsivity based on BMI. ANOTHER IDEA IS TO VARY BETA OVER TIME FOR AGE BECAUSE OF TEENAGE BRAINS.
     #def get_beta(self):
         #a = -0.01
         #b = 0.4
