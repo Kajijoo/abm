@@ -136,14 +136,14 @@ class Patch(Agent):
 
 
 class LearningModel(Model):
-    def __init__(self, N, width, height, learning_model='RW', distribute_patches = 'random', seed = None, epsilon = 0.05):
+    def __init__(self, N, width, height, learning_model='RW', distribute_patches = 'random', seed = None, epsilon = 0.05, theta = 1.5):
         super().__init__()
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
         self.schedule = SimultaneousActivation(self)
         self.learning_model = learning_model
-        self.epsilon = epsilon
-        self.theta = 1.5 #determines ratio high to low palatability foods
+        self.epsilon = epsilon #amount of noise in eating decision making (or diet)
+        self.theta = theta #determines ratio high to low palatability foods
         
         if seed is not None:
             random.seed(seed)
