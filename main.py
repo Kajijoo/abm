@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 class LearningAgent(Agent):
-    def __init__(self, unique_id, model, row, learning_model, epsilon):
+    def __init__(self, unique_id, model, row, learning_model, epsilon, value_low, value_high):
         super().__init__(unique_id, model)
         self.row = row
         self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
@@ -15,8 +15,8 @@ class LearningAgent(Agent):
         self.extinction_rate = 1.0 # Standard for RW extinction = 1, typically <1
         self.delta = 0.0 # Standard for delta = 0. Standard logstic for delta = 1, S-curve 0 < delta < 1
         self.beta = 1.0 # Responsivity to food in TD learning
-        self.value_low = 0.001  # Initial value outcome
-        self.value_high = 0.001 # Initial value outcome
+        self.value_low = value_low  # Initial value outcome
+        self.value_high = value_high # Initial value outcome
         self.ptype = None  # The current patch type where the agent is located
         self.food_consumed = None  # Food consumed status ('L' or 'H')
         self.p_low = 0.6  # True reward value of food type L
@@ -136,7 +136,7 @@ class Patch(Agent):
 
 
 class LearningModel(Model):
-    def __init__(self, N, width, height, learning_model='RW', distribute_patches = 'random', seed = None, epsilon = 0.05, theta = 1.5):
+    def __init__(self, N, width, height, learning_model='RW', distribute_patches = 'random', seed = None, epsilon = 0.05, theta = 1.5, value_low = 0.001, value_high = 0.001):
         super().__init__()
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
@@ -144,6 +144,8 @@ class LearningModel(Model):
         self.learning_model = learning_model
         self.epsilon = epsilon #amount of noise in eating decision making (or diet)
         self.theta = theta #determines ratio high to low palatability foods
+        self.value_high = value_high
+        self.value_low = value_low
         
         if seed is not None:
             random.seed(seed)
@@ -151,7 +153,7 @@ class LearningModel(Model):
 
         #Create agents 
         for i in range(self.num_agents):
-            agent = LearningAgent(i, self, row=i, learning_model=learning_model, epsilon=epsilon)
+            agent = LearningAgent(i, self, row=i, learning_model=learning_model, epsilon=epsilon, value_low=value_low, value_high=value_high)
             self.grid.place_agent(agent, (0, i))
             self.schedule.add(agent)
 
