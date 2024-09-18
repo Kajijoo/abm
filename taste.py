@@ -1,7 +1,9 @@
 from mesa import Agent, Model
 from mesa.space import MultiGrid
+from mesa.space import NetworkGrid
 from mesa.time import SimultaneousActivation
 from mesa.datacollection import DataCollector
+import networkx as nx
 import random
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -65,9 +67,18 @@ class LearningAgent(Agent):
 
         return 0.5
 
+    #def social_influence(self):   
+    # We could define some type of social network and define a social influence method that also provides evidence for Bayesian Inference Making
+    # Or some a simple weighted average of local neighbors
+    
+    #       G = nx.erdos_renyi_graph(n = self.num_agents, p = 0.01)
+    #       self.grid = NetworkGrid(G) 
+
+
     def step(self): 
         self.move()
         self.observe()
+        #self.social_influence()
         
 class Patch(Agent):
     def __init__(self, unique_id, model, patch_type):
