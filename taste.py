@@ -1,6 +1,5 @@
 from mesa import Agent, Model
 from mesa.space import MultiGrid
-from mesa.space import NetworkGrid
 from mesa.time import SimultaneousActivation
 from mesa.datacollection import DataCollector
 import networkx as nx
@@ -26,6 +25,9 @@ class LearningAgent(Agent):
         # P(H) = Prior belief that healthy food is tasty, in this case 50% for everyone. 
         # We could use data from Pivecka et al. (2023) to prior belief and relate it to social class.
         self.ht_belief = 0.5
+
+        #Empty list for neighbors
+        self.neighbors = []
 
     def move(self): # Move agent to the right in grid space
         x, y = self.pos
@@ -67,18 +69,22 @@ class LearningAgent(Agent):
 
         return 0.5
 
-    #def social_influence(self):   
-    # We could define some type of social network and define a social influence method that also provides evidence for Bayesian Inference Making
-    # Or some a simple weighted average of local neighbors
-    
-    #       G = nx.erdos_renyi_graph(n = self.num_agents, p = 0.01)
-    #       self.grid = NetworkGrid(G) 
+    def social_influence(self):   
+    # We a social influence method that provides evidence for Bayesian Inference making,
+    # Or a simple weighted average of neighbors.
 
+        if self.model.social:
+            if len(self.neighbors) > 0:
+                avg_neighbor_belief = sum([n.ht_belief for n in self.neighbors]) / len(self.neighbors)
+                self.ht_belief = (self.ht_belief + avg_neighbor_belief) / 2
+                #print(f"Agent {self.unique_id} updated belief based on neighbors.")
+        else: 
+            return
 
     def step(self): 
         self.move()
         self.observe()
-        #self.social_influence()
+        self.social_influence()
         
 class Patch(Agent):
     def __init__(self, unique_id, model, patch_type):
@@ -96,7 +102,7 @@ class Patch(Agent):
             return "purple"
 
 class LearningModel(Model):
-    def __init__(self, N, width, height, distribute_patches = 'random', HT = 0.25, HN = 0.25, UT = 0.25, UN = 0.25, seed = None):
+    def __init__(self, N, width, height, distribute_patches = 'random', HT = 0.25, HN = 0.25, UT = 0.25, UN = 0.25, social = False, network_type='random', seed = None):
         super().__init__()
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
@@ -105,16 +111,24 @@ class LearningModel(Model):
         self.HN = HN
         self.UT = UT
         self.UN = UN
+        self.social = social  # Toggle for social influence
+        self.social_network = nx.Graph()  # Initialize an empty graph for the social network
+        self.network_type = network_type
+
         
         if seed is not None:
             random.seed(seed)
             self.random.seed(seed)
+
+        # Create an empty list for agents
+        self.agents = []
 
         #Create agents 
         for i in range(self.num_agents):
             agent = LearningAgent(i, self, row=i)
             self.grid.place_agent(agent, (0, i))
             self.schedule.add(agent)
+            self.agents.append(agent)  # Keep track of agents
 
         #Add patches with types based on different distributions
         if distribute_patches == 'random':
@@ -136,9 +150,29 @@ class LearningModel(Model):
                     patch = Patch(f'patch_{x}_{y}', self, patch_type)
                     self.grid.place_agent(patch, (x, y))
 
+
+    # Create the social network connections (edges) randomly or based on a specific network structure
+
+        self.create_social_network()
+
         self.datacollector = DataCollector(
-            agent_reporters={'Healthy Tasty Belief':'ht_belief'}
+            agent_reporters={'Healthy Tasty Belief': 'ht_belief'}
         )
+
+    def create_social_network(self):
+        if self.network_type == 'random':
+            self.social_network = nx.erdos_renyi_graph(self.num_agents, 0.1)
+        elif self.network_type == 'small-world':
+            self.social_network = nx.watts_strogatz_graph(self.num_agents, 4, 0.1)
+        elif self.network_type == 'scale-free':
+            self.social_network = nx.barabasi_albert_graph(self.num_agents, 2)
+        else:
+            raise ValueError(f"Unknown network type: {self.network_type}")
+        
+        # Assign neighbors to agents based on the network
+        for agent in self.agents:
+            neighbors = list(self.social_network.neighbors(agent.unique_id))
+            agent.neighbors = [self.agents[n] for n in neighbors]
 
     def step(self):
         self.datacollector.collect(self)
