@@ -26,6 +26,9 @@ class LearningAgent(Agent):
         # We could use data from Pivecka et al. (2023) to prior belief and relate it to social class.
         self.ht_belief = 0.5
 
+        # Agents can have social class based on the macro finding that people from lower social class appear to have lower healthy-tasty beliefs (Pivecka et al., 2023).
+        self.social_class = None
+
         #Empty list for neighbors
         self.neighbors = []
 
@@ -70,8 +73,8 @@ class LearningAgent(Agent):
         return 0.5
 
     def social_influence(self):   
-    # We a social influence method that provides evidence for Bayesian Inference making,
-    # Or a simple weighted average of neighbors.
+        # We can develop a social influence method that provides evidence in the Bayesian Inference making procedure.
+        # Currently it is a simple weighted average of neighbors which will result in lower variation and convergence around 0.5.
 
         if self.model.social:
             if len(self.neighbors) > 0:
@@ -120,15 +123,15 @@ class LearningModel(Model):
             random.seed(seed)
             self.random.seed(seed)
 
-        # Create an empty list for agents
-        self.agents = []
+        # Create an empty list for agents, have to use robots instead of agents, because Mesa will update and no longer allow usage of agents.
+        self.robots = []
 
         #Create agents 
         for i in range(self.num_agents):
             agent = LearningAgent(i, self, row=i)
             self.grid.place_agent(agent, (0, i))
             self.schedule.add(agent)
-            self.agents.append(agent)  # Keep track of agents
+            self.robots.append(agent)  # Keep track of agents
 
         #Add patches with types based on different distributions
         if distribute_patches == 'random':
@@ -170,9 +173,9 @@ class LearningModel(Model):
             raise ValueError(f"Unknown network type: {self.network_type}")
         
         # Assign neighbors to agents based on the network
-        for agent in self.agents:
+        for agent in self.robots:
             neighbors = list(self.social_network.neighbors(agent.unique_id))
-            agent.neighbors = [self.agents[n] for n in neighbors]
+            agent.neighbors = [self.robots[n] for n in neighbors]
 
     def step(self):
         self.datacollector.collect(self)
