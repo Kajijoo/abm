@@ -1,14 +1,13 @@
 from mesa import Agent, Model
 from mesa.space import MultiGrid
-from mesa.time import SimultaneousActivation
 from mesa.datacollection import DataCollector
 import random
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 class LearningAgent(Agent):
-    def __init__(self, unique_id, model, row, learning_model, epsilon, value_low, value_high):
-        super().__init__(unique_id, model)
+    def __init__(self, model, row, learning_model, epsilon, value_low, value_high):
+        super().__init__(model)
         self.row = row
         self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
         self.learning_rate = 0.4 # Rate of learning
@@ -22,8 +21,6 @@ class LearningAgent(Agent):
         self.p_low = 0.6  # True reward value of food type L
         self.p_high = 0.9  # True reward value of food type H
         self.epsilon = epsilon
-        #self.bmi = bmi
-
 
     def move(self): # Move agent to the right in grid space
         x, y = self.pos
@@ -74,27 +71,12 @@ class LearningAgent(Agent):
             self.value_high = (self.value_high + self.learning_rate * (self.beta * self.p_high - self.value_high))
 
 
-#RW without extinction
+    #RW without extinction
     def rw(self):
         if self.food_consumed == "L":
             self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.p_low - self.value_low))
         else:
             self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.p_high - self.value_high))
-        
-    #def get_beta(self):
-        #a = -0.01
-        #b = 0.4
-        #c = 0.8
-        #return a * bmi**2 + b * bmi + c
-
-    def rw_e_b(self):
-        self.get_beta()
-        if self.food_consumed == "L":
-            self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * (self.beta * self.p_low - self.value_low))
-            self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * self.extinction_rate * (0 - self.value_high))
-        else:
-            self.value_high = self.value_high + (self.learning_rate * (self.value_high ** self.delta) * (self.beta * self.p_high - self.value_high))
-            self.value_low = self.value_low + (self.learning_rate * (self.value_low ** self.delta) * self.extinction_rate * (0 - self.value_low))
 
 
     def step(self): 
@@ -119,8 +101,8 @@ class LearningAgent(Agent):
 
 
 class Patch(Agent):
-    def __init__(self, unique_id, model, patch_type):
-        super().__init__(unique_id, model)
+    def __init__(self, model, patch_type):
+        super().__init__(model)
         self.type = patch_type
 
     def get_color(self):
@@ -138,7 +120,6 @@ class LearningModel(Model):
         super().__init__()
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
-        self.schedule = SimultaneousActivation(self)
         self.learning_model = learning_model
         self.epsilon = epsilon #amount of noise in eating decision making (or diet)
         self.theta = theta #determines ratio high to low palatability foods
@@ -151,9 +132,8 @@ class LearningModel(Model):
 
         #Create agents 
         for i in range(self.num_agents):
-            agent = LearningAgent(i, self, row=i, learning_model=learning_model, epsilon=epsilon, value_low=value_low, value_high=value_high)
+            agent = LearningAgent(self, row=i, learning_model=learning_model, epsilon=epsilon, value_low=value_low, value_high=value_high)
             self.grid.place_agent(agent, (0, i))
-            self.schedule.add(agent)
 
         #Add patches with types based on different distributions
         if distribute_patches == 'random':
@@ -183,7 +163,7 @@ class LearningModel(Model):
                         patch_type = 'LL'
                     else:
                         patch_type = 'HL'
-                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    patch = Patch(self, patch_type)
                     self.grid.place_agent(patch, (x, y))
 
                     #print(f"Placing patch of type {patch_type} at ({x}, {y})")
@@ -196,7 +176,7 @@ class LearningModel(Model):
                         patch_type = "HL"
                     else:
                         patch_type = "HH"
-                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    patch = Patch(self, patch_type)
                     self.grid.place_agent(patch, (x, y)) 
 
         elif distribute_patches == 'gradient_l': #distribute food according to gradient: LL to HL. 
@@ -207,7 +187,7 @@ class LearningModel(Model):
                         patch_type = "HL"
                     else:
                         patch_type = "LL"
-                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    patch = Patch(self, patch_type)
                     self.grid.place_agent(patch, (x, y))
 
         elif distribute_patches == 'weekday': #distribute food according to healthy weekdays, doubt on friday, and unhealthy weekend.
@@ -219,7 +199,7 @@ class LearningModel(Model):
                         patch_type = "HL"
                     else:
                         patch_type = ("HH")
-                    patch = Patch(f'patch_{x}_{y}', self, patch_type)
+                    patch = Patch(self, patch_type)
                     self.grid.place_agent(patch, (x, y))
 
         self.datacollector = DataCollector(
@@ -228,7 +208,8 @@ class LearningModel(Model):
 
     def step(self):
         self.datacollector.collect(self)
-        self.schedule.step()
+        self.agents.do("step")
+        self.agents.do("advance")
 
     def visualize(self):
         grid_matrix = []
@@ -251,4 +232,5 @@ class LearningModel(Model):
         matrix = [[bounds.index(cmap.colors.index(color)) for color in row] for row in grid_matrix]
         ax.imshow(matrix, cmap = cmap, norm = norm)
 
-        plt.show()   
+        plt.axis("off")
+        plt.show()
