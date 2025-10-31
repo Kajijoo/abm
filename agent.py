@@ -13,6 +13,7 @@ class LearningAgent(Agent):
         self.value_low = value_low  # Initial value outcome
         self.value_high = value_high # Initial value outcome
         self.food_consumed = None  # Food consumed status ('L' or 'H')
+        self.foods_consumed = {"H": 0, "L": 0}   # Foods consumed
         self.p_low = 0.6  # True reward value of food type L
         self.p_high = 0.9  # True reward value of food type H
         self.epsilon = epsilon
@@ -22,25 +23,24 @@ class LearningAgent(Agent):
         new_x = (x + 1) % self.model.grid.width
         self.model.grid.move_agent(self, (new_x, y))
 
-    def eat(self): #Eat procedure for TDW copied from the Hammond et al. 2012 NetLogo model
-        #Get current patch type
+    def eat(self):
         ptype = self.model.grid.properties["patch_type"].data[self.pos]
 
-        # Determine food consumed based on patch type
-        # 0 = LL, 1 = HL, 2 = HH
         if ptype == 0:  # LL
-            self.food_consumed = "L"
+            choice = "L"
         elif ptype == 2:  # HH
-            self.food_consumed = "H"
+            choice = "H"
         elif self.value_low == self.value_high:
-            self.food_consumed = random.choice(["H", "L"])
+            choice = random.choice(["H", "L"])
         else:
-            if self.value_low > self.value_high:
-                self.food_consumed = "L"
-            else:
-                self.food_consumed = "H"
-            if random.random() < self.epsilon:
-                self.food_consumed = "L" if self.food_consumed == "H" else "H"
+            choice = "L" if self.value_low > self.value_high else "H"
+
+        # add exploration noise
+        if random.random() < self.epsilon:
+            choice = "L" if choice == "H" else "H"
+
+        self.food_consumed = choice
+        self.foods_consumed[choice] += 1  # update counts
 
     def rw_e(self):
         # Get the patch type of the current agent's position

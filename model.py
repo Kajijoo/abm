@@ -24,7 +24,12 @@ class LearningModel(Model):
                 "Value_Low": lambda m: np.mean([a.value_low for a in m.agents]),
                 "Value_High": lambda m: np.mean([a.value_high for a in m.agents])
             },
-            agent_reporters={"Value_Low": "value_low", "Value_High": "value_high"}
+            agent_reporters={
+                "Value_Low": "value_low",
+                "Value_High": "value_high",
+                "H_count": lambda a: a.foods_consumed["H"],
+                "L_count": lambda a: a.foods_consumed["L"]
+            }
         )
 
         if seed is not None:
@@ -62,7 +67,7 @@ class LearningModel(Model):
         elif distribute_patches == 'gradient_h':
             for y in range(self.grid.height):
                 for x in range(self.grid.width):
-                    prob_hh = y / self.grid.width
+                    prob_hh = x / self.grid.width
                     patch_type = 1 if random.random() < prob_hh else 2  # 1=HL, 2=HH
                     patch_layer.set_cell((x, y), patch_type)
 
@@ -83,8 +88,6 @@ class LearningModel(Model):
                     else:
                         patch_type = 2  # HH = Weekend (Saturday-Sunday)
                     patch_layer.set_cell((x, y), patch_type)
-
-        print(self.grid.properties["patch_type"].data)
 
         # Place agents on grid 
         for i in range(self.N):
