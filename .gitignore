@@ -15,9 +15,10 @@ __pycache__
 
 app.py
 
-.plots
 .GMB
 .neuron
+.plots
+
 
 # Runtime data
 pids
