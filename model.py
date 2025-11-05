@@ -1,3 +1,6 @@
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 from mesa import Model
 from mesa.space import MultiGrid, PropertyLayer
 from mesa.datacollection import DataCollector
@@ -5,8 +8,10 @@ import random
 from agent import LearningAgent
 import numpy as np
 
+
 class LearningModel(Model):
-    def __init__(self, N = 100, width = 20, height = 20, learning_model='RWE', distribute_patches = 'random', seed = None, epsilon = 0.05, theta = 1.5, value_low = 0.001, value_high = 0.001):
+    def __init__(self, N = 100, width = 20, height = 20, learning_model='RWE', distribute_patches = 'random', 
+                 seed = None, epsilon = 0.05, theta = 1.5, value_low = 0.001, value_high = 0.001, p_low = 0.6, p_high = 0.9):
         super().__init__(seed = seed)
         self.N = N
         self.width = width
@@ -91,7 +96,7 @@ class LearningModel(Model):
 
         # Place agents on grid 
         for i in range(self.N):
-            agent = LearningAgent(self, row=i, learning_model=learning_model, epsilon=epsilon, value_low=value_low, value_high=value_high)
+            agent = LearningAgent(self, row=i, learning_model=learning_model, epsilon=epsilon, value_low=value_low, value_high=value_high, p_low=p_low, p_high=p_high)
             self.grid.place_agent(agent, (0, i % self.grid.height))
 
     def step(self):

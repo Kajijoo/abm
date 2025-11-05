@@ -2,11 +2,11 @@ from mesa import Agent
 import random
 
 class LearningAgent(Agent):
-    def __init__(self, model, row, learning_model, epsilon, value_low, value_high):
+    def __init__(self, model, row, learning_model, epsilon, value_low, value_high, p_low, p_high):
         super().__init__(model)
         self.row = row
         self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
-        self.learning_rate = 0.4 # Rate of learning
+        self.learning_rate = 0.3 # Rate of learning
         self.extinction_rate = 1.0 # Standard for RW extinction = 1, typically <1
         self.delta = 0.0 # Standard for delta = 0. Standard logstic for delta = 1, S-curve 0 < delta < 1
         self.beta = 1.0 # Responsivity to food in TD learning
@@ -14,8 +14,8 @@ class LearningAgent(Agent):
         self.value_high = value_high # Initial value outcome
         self.food_consumed = None  # Food consumed status ('L' or 'H')
         self.foods_consumed = {"H": 0, "L": 0}   # Foods consumed
-        self.p_low = 0.6  # True reward value of food type L
-        self.p_high = 0.9  # True reward value of food type H
+        self.p_low = p_low  # True reward value of food type L
+        self.p_high = p_high  # True reward value of food type H
         self.epsilon = epsilon
 
     def move(self): # Move agent to the right in grid space
