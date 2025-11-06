@@ -6,7 +6,7 @@ class LearningAgent(Agent):
         super().__init__(model)
         self.row = row
         self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
-        self.learning_rate = 0.3 # Rate of learning
+        self.learning_rate = 0.4 # Rate of learning
         self.extinction_rate = 1.0 # Standard for RW extinction = 1, typically <1
         self.delta = 0.0 # Standard for delta = 0. Standard logstic for delta = 1, S-curve 0 < delta < 1
         self.beta = 1.0 # Responsivity to food in TD learning

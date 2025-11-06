@@ -10,7 +10,7 @@ import numpy as np
 
 
 class LearningModel(Model):
-    def __init__(self, N = 100, width = 20, height = 20, learning_model='RWE', distribute_patches = 'random', 
+    def __init__(self, N = 100, width = 100, height = 100, learning_model='RWE', distribute_patches = 'random', 
                  seed = None, epsilon = 0.05, theta = 1.5, value_low = 0.001, value_high = 0.001, p_low = 0.6, p_high = 0.9):
         super().__init__(seed = seed)
         self.N = N
@@ -102,4 +102,4 @@ class LearningModel(Model):
     def step(self):
         self.datacollector.collect(self)
         self.agents.do("step")
-        self.agents.do("advance")
+        #self.agents.do("advance")
