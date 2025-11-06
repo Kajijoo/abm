@@ -7,11 +7,12 @@ import warnings
 import os
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+from datetime import datetime
+RUN_TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
 from model import LearningModel
 
 mpl.rcParams['font.family'] = 'Arial'
-mpl.rcParams['figure.dpi'] = 150
-
 
 # ---------------------------------------------------------------------
 # Learning phase (agent-level mean final values)
@@ -73,12 +74,26 @@ def run_single_sim(args):
     vlows = [a.value_low for a in model.agents]
     deltas = [vh - vl for vh, vl in zip(vhighs, vlows)]
 
+    # L/H ratio; avoid division by zero
+    l_counts = [a.foods_consumed["L"] for a in model.agents]
+    h_counts = [a.foods_consumed["H"] for a in model.agents]
+
+    ratios = []
+    for Lc, Hc in zip(l_counts, h_counts):
+        if Hc == 0:
+            ratios.append(np.nan)
+        else:
+            ratios.append(Lc / Hc)
+
+    mean_ratio = float(np.nanmean(ratios))
+
     return (
         theta,
         epsilon,
         float(np.mean(deltas)),
         float(np.mean(vhighs)),
-        float(np.mean(vlows))
+        float(np.mean(vlows)),
+        mean_ratio
     )
 
 
@@ -134,6 +149,33 @@ def plot_value_pointplots(df, outdir):
     pointplot("Value_High", "value_high_pointplot.png")
     pointplot("Value_Low", "value_low_pointplot.png")
 
+# ---------------------------------------------------------------------
+# Plot surface for theta, epsilon, delta V, and L/H ratio
+# ---------------------------------------------------------------------
+
+def plot_lh_ratio_3d(df, outdir):
+    thetas = sorted(df["theta"].unique())
+    epsilons = sorted(df["epsilon"].unique())
+
+    # Surface grid
+    T, E = np.meshgrid(thetas, epsilons)
+
+    # Pivot into Z grid
+    Z = df.pivot(index="epsilon", columns="theta", values="LH_Ratio").values
+
+    fig = plt.figure(figsize=(7,5))
+    ax = fig.add_subplot(111, projection="3d")
+
+    ax.plot_surface(T, E, Z, cmap="viridis", edgecolor="none")
+
+    ax.set_xlabel("theta")
+    ax.set_ylabel("epsilon")
+    ax.set_zlabel("L_count / H_count")
+
+    plt.tight_layout()
+    plt.savefig(f"{outdir}/lh_ratio_surface.png", dpi=300, bbox_inches='tight')
+    plt.show()
+
 
 # ---------------------------------------------------------------------
 # Main experiment
@@ -144,7 +186,7 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
         p_high=p_high,
         p_low=p_low,
         steps=100,
-        theta=4.0,
+        theta=1.5,
         epsilon=0.05
     )
     print(f"Pre-learning for ({p_high}, {p_low}) -> V_H0={vhigh0:.4f}, V_L0={vlow0:.4f}")
@@ -167,12 +209,13 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
 
     df = pd.DataFrame(
         results,
-        columns=["theta", "epsilon", "delta_v", "Value_High", "Value_Low"]
+        columns=["theta", "epsilon", "delta_v", "Value_High", "Value_Low", "LH_Ratio"]
     )
+
 
     df_mean = df.groupby(["theta", "epsilon"], as_index=False).mean()
 
-    outdir = f"resub/interventions/{tag}"
+    outdir = f"resub/interventions/{RUN_TIMESTAMP}/{tag}"
     os.makedirs(outdir, exist_ok=True)
 
     with open(f"{outdir}/prelearning_init.txt", "w") as f:
@@ -182,7 +225,8 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     df.to_csv(f"{outdir}/all_agent_results.csv", index=False)
     df_mean.to_csv(f"{outdir}/deltaV_contour_data.csv", index=False)
 
-    plot_value_pointplots(df, outdir)
+    #plot_value_pointplots(df, outdir)
+    plot_lh_ratio_3d(df_mean, outdir)
 
     print(f"Saved results to {outdir}")
     return df_mean
@@ -230,16 +274,19 @@ def plot_combined(df1, df2, p1, p2):
     cbar.set_label(r'$\Delta V = V_H - V_L$', fontsize=12)
     cbar.ax.tick_params(labelsize=11)
 
-    plt.savefig("resub/interventions/interventions.png", dpi=600, bbox_inches='tight')
-    plt.savefig("resub/interventions/interventions.pdf", dpi=600, bbox_inches='tight')
-    plt.show()
+    combined_dir = f"resub/interventions/contour/{RUN_TIMESTAMP}"
+    os.makedirs(combined_dir, exist_ok=True)
 
+    plt.savefig(f"{combined_dir}/interventions.png", dpi=600, bbox_inches='tight')
+    plt.savefig(f"{combined_dir}/interventions.pdf", dpi=600, bbox_inches='tight')
+
+    plt.show()
 
 # ---------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
-    df1 = run_experiment(p_high=0.9, p_low=0.6, tag="baseline")
+    df1 = run_experiment(p_high=0.75, p_low=0.5, tag="baseline")
     df2 = run_experiment(p_high=1.0, p_low=0.5, tag="strong_diff")
 
-    plot_combined(df1, df2, (0.9, 0.6), (1.0, 0.5))
+    plot_combined(df1, df2, (0.75, 0.5), (1.0, 0.5))

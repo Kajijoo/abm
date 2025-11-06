@@ -33,7 +33,7 @@ class LearningAgent(Agent):
         elif self.value_low == self.value_high:
             self.food_consumed = random.choice(["H", "L"])
         else:
-            if self.value_low < self.value_high:
+            if self.value_low > self.value_high:
                 self.food_consumed = "L" 
             else:
                 self.food_consumed = "H"
