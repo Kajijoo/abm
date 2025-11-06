@@ -6,7 +6,7 @@ class LearningAgent(Agent):
         super().__init__(model)
         self.row = row
         self.learning_model = learning_model  # 'RW' or 'TD' or 'RWE"
-        self.learning_rate = 0.4 # Rate of learning
+        self.learning_rate = 0.8 # Rate of learning
         self.extinction_rate = 1.0 # Standard for RW extinction = 1, typically <1
         self.delta = 0.0 # Standard for delta = 0. Standard logstic for delta = 1, S-curve 0 < delta < 1
         self.beta = 1.0 # Responsivity to food in TD learning
@@ -27,20 +27,21 @@ class LearningAgent(Agent):
         ptype = self.model.grid.properties["patch_type"].data[self.pos]
 
         if ptype == 0:  # LL
-            choice = "L"
+            self.food_consumed = "L"
         elif ptype == 2:  # HH
-            choice = "H"
+            self.food_consumed = "H"
         elif self.value_low == self.value_high:
-            choice = random.choice(["H", "L"])
+            self.food_consumed = random.choice(["H", "L"])
         else:
-            choice = "L" if self.value_low > self.value_high else "H"
+            if self.value_low < self.value_high:
+                self.food_consumed = "L" 
+            else:
+                self.food_consumed = "H"
+            # add exploration noise
+            if random.random() < self.epsilon:
+                self.food_consumed = "L" if self.food_consumed == "H" else "H"
 
-        # add exploration noise
-        if random.random() < self.epsilon:
-            choice = "L" if choice == "H" else "H"
-
-        self.food_consumed = choice
-        self.foods_consumed[choice] += 1  # update counts
+        self.foods_consumed[self.food_consumed] += 1  # update counts
 
     def rw_e(self):
         # Get the patch type of the current agent's position

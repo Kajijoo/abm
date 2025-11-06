@@ -19,7 +19,7 @@ class LearningModel(Model):
         self.grid = MultiGrid(width, height, True)
         self.learning_model = learning_model
         self.epsilon = epsilon #amount of noise in eating decision making (or diet)
-        self.theta = theta #determines ratio high to low processed foods
+        self.theta = theta #determines ratio high to low reward foods
         self.value_high = value_high
         self.value_low = value_low
         self.running = True
@@ -83,16 +83,6 @@ class LearningModel(Model):
                     patch_type = 1 if random.random() < prob_ll else 0  # 1=HL, 0=LL
                     patch_layer.set_cell((x, y), patch_type)
 
-        elif distribute_patches == 'weekday':
-            for x in range(self.grid.width):
-                for y in range(self.grid.height):
-                    if (x % 7) < 4:
-                        patch_type = 0  # LL = Weekdays (Monday-Thursday)
-                    elif (x % 7) == 4:
-                        patch_type = 1  # HL = Friday
-                    else:
-                        patch_type = 2  # HH = Weekend (Saturday-Sunday)
-                    patch_layer.set_cell((x, y), patch_type)
 
         # Place agents on grid 
         for i in range(self.N):

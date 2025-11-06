@@ -1,2 +1,2 @@
-p_high=0.9, p_low=0.6, theta_learning=1.5, epsilon_learning=0.05, steps=200
-V_H0=0.885513, V_L0=0.136715
+p_high=0.9, p_low=0.6, theta_learning=4.0, epsilon_learning=0.05, steps=100
+V_H0=0.890564, V_L0=0.079734
