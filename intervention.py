@@ -96,59 +96,6 @@ def run_single_sim(args):
         mean_ratio
     )
 
-
-# ---------------------------------------------------------------------
-# Diagnostic pointplots for Value_High and Value_Low
-# ---------------------------------------------------------------------
-def plot_value_pointplots(df, outdir):
-    eps = sorted(df["epsilon"].unique())
-    thetas = sorted(df["theta"].unique())
-
-    def pointplot(yvar, filename):
-        plt.figure(figsize=(6,4))
-
-        for th in thetas:
-            sub = df[df["theta"] == th]
-            means = [sub[sub["epsilon"] == e][yvar].mean() for e in eps]
-
-            ci_low = []
-            ci_high = []
-            for e in eps:
-                vals = sub[sub["epsilon"] == e][yvar].values
-                if len(vals) > 1:
-                    low = np.percentile(vals, 10)
-                    high = np.percentile(vals, 90)
-                else:
-                    low = high = vals[0]
-
-                m = means[eps.index(e)]
-
-                # enforce non-negative error bars
-                ci_l = max(m - low, 0)
-                ci_h = max(high - m, 0)
-
-                ci_low.append(ci_l)
-                ci_high.append(ci_h)
-
-            plt.errorbar(
-                eps,
-                means,
-                yerr=[ci_low, ci_high],
-                fmt='o',
-                capsize=3,
-                label=f"theta={th}"
-            )
-
-        plt.xlabel("Dieting")
-        plt.ylabel(yvar)
-        plt.legend(title="H/L ratio")
-        plt.tight_layout()
-        plt.savefig(f"{outdir}/{filename}", dpi=300, bbox_inches='tight')
-        plt.show()
-
-    pointplot("Value_High", "value_high_pointplot.png")
-    pointplot("Value_Low", "value_low_pointplot.png")
-
 # ---------------------------------------------------------------------
 # Plot surface for theta, epsilon, delta V, and L/H ratio
 # ---------------------------------------------------------------------
@@ -168,12 +115,13 @@ def plot_lh_ratio_3d(df, outdir):
 
     ax.plot_surface(T, E, Z, cmap="viridis", edgecolor="none")
 
-    ax.set_xlabel("theta")
-    ax.set_ylabel("epsilon")
-    ax.set_zlabel("L_count / H_count")
+    ax.set_xlabel(r"$\theta$", fontsize = 12)
+    ax.set_ylabel(r"$\epsilon$", fontsize = 12)
+    ax.set_zlabel("L/H consumption ratio", fontsize = 12)
 
-    plt.tight_layout()
-    plt.savefig(f"{outdir}/lh_ratio_surface.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{outdir}/lh_ratio_surface.png", dpi=600, bbox_inches='tight')
+    plt.savefig(f"{outdir}/lh_ratio_surface.pdf", dpi=600, bbox_inches='tight')
+
     plt.show()
 
 
@@ -225,7 +173,6 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     df.to_csv(f"{outdir}/all_agent_results.csv", index=False)
     df_mean.to_csv(f"{outdir}/deltaV_contour_data.csv", index=False)
 
-    #plot_value_pointplots(df, outdir)
     plot_lh_ratio_3d(df_mean, outdir)
 
     print(f"Saved results to {outdir}")
