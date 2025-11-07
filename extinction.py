@@ -111,7 +111,6 @@ def plot_combined(df1, df2, p1, p2):
 
     plt.savefig("resub/theta/combined_contours.png", dpi=600, bbox_inches='tight')
     plt.savefig("resub/theta/combined_contours.pdf", dpi=600, bbox_inches='tight')
-    plt.show()
 
 if __name__ == "__main__":
     # 150% reward difference

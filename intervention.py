@@ -102,28 +102,33 @@ def run_single_sim(args):
 
 def plot_lh_ratio_3d(df, outdir):
     thetas = sorted(df["theta"].unique())
-    epsilons = sorted(df["epsilon"].unique())
+    eps = sorted(df["epsilon"].unique())
 
-    # Surface grid
-    T, E = np.meshgrid(thetas, epsilons)
+    T, E = np.meshgrid(thetas, eps)
 
-    # Pivot into Z grid
-    Z = df.pivot(index="epsilon", columns="theta", values="LH_Ratio").values
+    Z_ratio = df.pivot(index="epsilon", columns="theta", values="LH_Ratio").values
+    Z_delta = df.pivot(index="epsilon", columns="theta", values=r"$\Delta V$").values
 
     fig = plt.figure(figsize=(7,5))
     ax = fig.add_subplot(111, projection="3d")
 
-    ax.plot_surface(T, E, Z, cmap="viridis", edgecolor="none")
+    norm = plt.Normalize(Z_delta.min(), Z_delta.max())
+    colors = plt.cm.viridis(norm(Z_delta))
 
-    ax.set_xlabel(r"$\theta$", fontsize = 12)
-    ax.set_ylabel(r"$\epsilon$", fontsize = 12)
-    ax.set_zlabel("L/H consumption ratio", fontsize = 12)
+    surf = ax.plot_surface(T, E, Z_ratio, facecolors=colors, edgecolor="none")
 
-    plt.savefig(f"{outdir}/lh_ratio_surface.png", dpi=600, bbox_inches='tight')
-    plt.savefig(f"{outdir}/lh_ratio_surface.pdf", dpi=600, bbox_inches='tight')
+    mappable = plt.cm.ScalarMappable(norm=norm, cmap="viridis")
+    mappable.set_array(Z_delta)
+    fig.colorbar(mappable, ax=ax, shrink=0.6, pad=0.1, label="delta V")
 
-    plt.show()
+    ax.set_xlabel(r"$\theta$", fontsize=12)
+    ax.set_ylabel(r"$\epsilon$", fontsize=12)
+    ax.set_zlabel("L/H consumption ratio", fontsize=12)
 
+    plt.tight_layout()
+
+    plt.savefig(f"{outdir}/lh_ratio_surface_colored.png", dpi=600, bbox_inches="tight")
+    plt.savefig(f"{outdir}/lh_ratio_surface_colored.pdf", dpi=600, bbox_inches="tight")
 
 # ---------------------------------------------------------------------
 # Main experiment
@@ -178,7 +183,6 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     print(f"Saved results to {outdir}")
     return df_mean
 
-
 # ---------------------------------------------------------------------
 # Combined contour plot (unchanged)
 # ---------------------------------------------------------------------
@@ -221,13 +225,11 @@ def plot_combined(df1, df2, p1, p2):
     cbar.set_label(r'$\Delta V = V_H - V_L$', fontsize=12)
     cbar.ax.tick_params(labelsize=11)
 
-    combined_dir = f"resub/interventions/contour/{RUN_TIMESTAMP}"
+    combined_dir = f"resub/interventions/{RUN_TIMESTAMP}/contour/"
     os.makedirs(combined_dir, exist_ok=True)
 
     plt.savefig(f"{combined_dir}/interventions.png", dpi=600, bbox_inches='tight')
     plt.savefig(f"{combined_dir}/interventions.pdf", dpi=600, bbox_inches='tight')
-
-    plt.show()
 
 # ---------------------------------------------------------------------
 # Entry point
