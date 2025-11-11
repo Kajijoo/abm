@@ -5,24 +5,21 @@ import matplotlib as mpl
 from multiprocessing import Pool
 import warnings
 import os
+from datetime import datetime
+from model import LearningModel
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from datetime import datetime
 RUN_TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-from model import LearningModel
 
 mpl.rcParams['font.family'] = 'Arial'
 
-# ---------------------------------------------------------------------
-# Learning phase (agent-level mean final values)
-# ---------------------------------------------------------------------
-def run_learning(p_high, p_low, steps=100, theta=4.0, epsilon=0.05, N=100, seed=123):
+def run_learning(p_high, p_low, steps=100, theta=3.0, epsilon=0.05, N=1000, seed=123):
     np.random.seed(seed)
     model = LearningModel(
         N=N,
         width=100,
-        height=100,
+        height=1000,
         learning_model='RWE',
         theta=theta,
         epsilon=epsilon
@@ -40,21 +37,17 @@ def run_learning(p_high, p_low, steps=100, theta=4.0, epsilon=0.05, N=100, seed=
 
     return vals_high, vals_low
 
-
-# ---------------------------------------------------------------------
-# Single simulation (agent-level results)
-# ---------------------------------------------------------------------
 def run_single_sim(args):
     theta, epsilon, seed, p_high, p_low, vhigh0, vlow0 = args
     np.random.seed(seed)
 
     steps = 100
-    N = 100
+    N = 1000
 
     model = LearningModel(
         N=N,
         width=100,
-        height=100,
+        height=N,
         learning_model='RWE',
         theta=theta,
         epsilon=epsilon
@@ -74,7 +67,6 @@ def run_single_sim(args):
     vlows = [a.value_low for a in model.agents]
     deltas = [vh - vl for vh, vl in zip(vhighs, vlows)]
 
-    # L/H ratio; avoid division by zero
     l_counts = [a.foods_consumed["L"] for a in model.agents]
     h_counts = [a.foods_consumed["H"] for a in model.agents]
 
@@ -96,10 +88,6 @@ def run_single_sim(args):
         mean_ratio
     )
 
-# ---------------------------------------------------------------------
-# Plot surface for theta, epsilon, delta V, and L/H ratio
-# ---------------------------------------------------------------------
-
 def plot_lh_ratio_3d(df, outdir):
     thetas = sorted(df["theta"].unique())
     eps = sorted(df["epsilon"].unique())
@@ -107,7 +95,7 @@ def plot_lh_ratio_3d(df, outdir):
     T, E = np.meshgrid(thetas, eps)
 
     Z_ratio = df.pivot(index="epsilon", columns="theta", values="LH_Ratio").values
-    Z_delta = df.pivot(index="epsilon", columns="theta", values=r"$\Delta V$").values
+    Z_delta = df.pivot(index="epsilon", columns="theta", values="delta_v").values
 
     fig = plt.figure(figsize=(7,5))
     ax = fig.add_subplot(111, projection="3d")
@@ -121,8 +109,8 @@ def plot_lh_ratio_3d(df, outdir):
     mappable.set_array(Z_delta)
     fig.colorbar(mappable, ax=ax, shrink=0.6, pad=0.1, label="delta V")
 
-    ax.set_xlabel(r"$\theta$", fontsize=12)
-    ax.set_ylabel(r"$\epsilon$", fontsize=12)
+    ax.set_xlabel("theta", fontsize=12)
+    ax.set_ylabel("epsilon", fontsize=12)
     ax.set_zlabel("L/H consumption ratio", fontsize=12)
 
     plt.tight_layout()
@@ -130,23 +118,13 @@ def plot_lh_ratio_3d(df, outdir):
     plt.savefig(f"{outdir}/lh_ratio_surface_colored.png", dpi=600, bbox_inches="tight")
     plt.savefig(f"{outdir}/lh_ratio_surface_colored.pdf", dpi=600, bbox_inches="tight")
 
-# ---------------------------------------------------------------------
-# Main experiment
-# ---------------------------------------------------------------------
 def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
-
-    vhigh0, vlow0 = run_learning(
-        p_high=p_high,
-        p_low=p_low,
-        steps=100,
-        theta=1.5,
-        epsilon=0.05
-    )
+    vhigh0, vlow0 = run_learning(p_high=p_high, p_low=p_low, steps=100, theta=3.0, epsilon=0.05)
     print(f"Pre-learning for ({p_high}, {p_low}) -> V_H0={vhigh0:.4f}, V_L0={vlow0:.4f}")
 
-    thetas = [0.25, 0.5, 1.0, 2.0, 4.0]
+    thetas = [0.05, 0.10, 0.25, 0.5, 1.0, 3.0, 4.0]
     epsilons = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    n_reps = 10
+    n_reps = 100
 
     args = [
         (theta, epsilon, seed, p_high, p_low, vhigh0, vlow0)
@@ -172,7 +150,7 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     os.makedirs(outdir, exist_ok=True)
 
     with open(f"{outdir}/prelearning_init.txt", "w") as f:
-        f.write(f"p_high={p_high}, p_low={p_low}, theta_learning=4.0, epsilon_learning=0.05, steps=100\n")
+        f.write(f"p_high={p_high}, p_low={p_low}, theta_learning=3.0, epsilon_learning=0.05, steps=100\n")
         f.write(f"V_H0={vhigh0:.6f}, V_L0={vlow0:.6f}\n")
 
     df.to_csv(f"{outdir}/all_agent_results.csv", index=False)
@@ -183,9 +161,6 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     print(f"Saved results to {outdir}")
     return df_mean
 
-# ---------------------------------------------------------------------
-# Combined contour plot (unchanged)
-# ---------------------------------------------------------------------
 def plot_combined(df1, df2, p1, p2):
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 3), sharey=True, constrained_layout=True)
 
@@ -231,9 +206,6 @@ def plot_combined(df1, df2, p1, p2):
     plt.savefig(f"{combined_dir}/interventions.png", dpi=600, bbox_inches='tight')
     plt.savefig(f"{combined_dir}/interventions.pdf", dpi=600, bbox_inches='tight')
 
-# ---------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------
 if __name__ == "__main__":
     df1 = run_experiment(p_high=0.75, p_low=0.5, tag="baseline")
     df2 = run_experiment(p_high=1.0, p_low=0.5, tag="strong_diff")

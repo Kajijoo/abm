@@ -99,8 +99,8 @@ def plot_convergence_and_volatility(df_mean, df_vol):
         ax.plot(group["step"], group["delta_v"], lw=1.8, color=colors[alpha],
                 label=fr'$\alpha$={alpha}')
 
-    ax.set_xlabel('Time (steps)', fontsize=12)
-    ax.set_ylabel(r'$\Delta V = V_H - V_L$', fontsize=12)
+    ax.set_xlabel('Steps', fontsize=12)
+    ax.set_ylabel(r'$V_H - V_L$', fontsize=12)
     ax.set_xticks([0, 50, 100, 150, 200])
     ax.set_yticks([0, 0.5, 1.0])
     ax.set_xlim(0, 200)
@@ -116,7 +116,7 @@ def plot_convergence_and_volatility(df_mean, df_vol):
     ax2.plot(df_vol["alpha"], df_vol["volatility"], marker='o', lw=1.8, color=colors[0.3])
 
     ax2.set_xlabel(r'$\alpha$', fontsize=12)
-    ax2.set_ylabel('SD of ΔV at agent level', fontsize=12)
+    ax2.set_ylabel(r'SD of $V_H - V_L$', fontsize=12)
     ax2.tick_params(labelsize=10)
     ax2.set_yticks([0, 0.05, 0.1, 0.15, 0.20, 0.25])
     ax2.spines['top'].set_visible(False)

@@ -5,20 +5,21 @@ import matplotlib as mpl
 from multiprocessing import Pool
 import warnings
 import os
+from datetime import datetime
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 from model import LearningModel
 
-# Global plot style
+RUN_TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
 mpl.rcParams['font.family'] = 'Arial'
 mpl.rcParams['figure.dpi'] = 150
-
 
 def run_single_sim(args):
     theta, gamma, seed, p_high, p_low = args
     np.random.seed(seed)
     steps = 100
-    N = 100
+    N = 1000
 
     model = LearningModel(N=N, width=steps, height=N,
                           learning_model='RWE', theta=theta, epsilon=0.0)
@@ -39,11 +40,10 @@ def run_single_sim(args):
 
     return theta, gamma, delta_v
 
-
 def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
-    thetas = np.linspace(0.0, 4.0, 40)
-    gammas = np.linspace(0.0, 1.0, 10)
-    n_reps = 1
+    thetas = [0.25, 0.5, 1.0, 2.0, 4.0]
+    gammas = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    n_reps = 10
 
     args = [(theta, gamma, seed, p_high, p_low)
             for theta in thetas
@@ -58,15 +58,13 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     df = pd.DataFrame(results, columns=["theta", "gamma", "delta_v"])
     df_mean = df.groupby(["theta", "gamma"], as_index=False)["delta_v"].mean()
 
-    outdir = f"resub/theta/{tag}"
+    outdir = f"resub/theta/{RUN_TIMESTAMP}/{tag}"
     os.makedirs(outdir, exist_ok=True)
     df_mean.to_csv(f"{outdir}/deltaV_contour_data.csv", index=False)
     print(f"Saved results to {outdir}")
     return df_mean
 
-
 def plot_combined(df1, df2, p1, p2):
-    # Use constrained layout for reliable alignment
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 3), sharey=True, constrained_layout=True)
 
     plots = [
@@ -92,15 +90,8 @@ def plot_combined(df1, df2, p1, p2):
         if ax is axes[0]:
             ax.set_ylabel(r'$\gamma$', fontsize=12)
 
-        # Red highlight at delta V = 0
-        ax.contour(
-            T, G, Z,
-            levels=[0],
-            colors='red',
-            linewidths=1.2
-        )
+        ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
 
-    # Shared colorbar on the right
     cbar = fig.colorbar(
         c, ax=axes, orientation='vertical',
         shrink=0.85, pad=0.04,
@@ -109,14 +100,10 @@ def plot_combined(df1, df2, p1, p2):
     cbar.set_label(r'$\Delta V = V_H - V_L$', fontsize=12)
     cbar.ax.tick_params(labelsize=11)
 
-    plt.savefig("resub/theta/combined_contours.png", dpi=600, bbox_inches='tight')
-    plt.savefig("resub/theta/combined_contours.pdf", dpi=600, bbox_inches='tight')
+    plt.savefig("resub/theta/{RUN_TIMESTAMP}/combined_contours.png", dpi=600, bbox_inches='tight')
+    plt.savefig("resub/theta/{RUN_TIMESTAMP}/combined_contours.pdf", dpi=600, bbox_inches='tight')
 
 if __name__ == "__main__":
-    # 150% reward difference
     df1 = run_experiment(p_high=0.75, p_low=0.5, tag="baseline")
-
-    # 200% reward difference
     df2 = run_experiment(p_high=1.0, p_low=0.5, tag="strong_diff")
-
     plot_combined(df1, df2, (0.75, 0.5), (1.0, 0.5))
