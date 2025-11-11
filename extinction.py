@@ -3,47 +3,46 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from multiprocessing import Pool
-import warnings
-import os
 from datetime import datetime
+import warnings, os
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from model import LearningModel
+from vector_model import run_vectorized_simulation
 
 RUN_TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 mpl.rcParams['font.family'] = 'Arial'
 mpl.rcParams['figure.dpi'] = 150
 
+# ---------------------------------------------------------------------
+# Single simulation
+# ---------------------------------------------------------------------
 def run_single_sim(args):
     theta, gamma, seed, p_high, p_low = args
     np.random.seed(seed)
-    steps = 100
-    N = 1000
 
-    model = LearningModel(N=N, width=steps, height=N,
-                          learning_model='RWE', theta=theta, epsilon=0.0)
+    res = run_vectorized_simulation(
+        theta=theta,
+        epsilon=0.0,
+        p_high=p_high,
+        p_low=p_low,
+        steps=100,
+        N=100,
+        width=100,
+        height=100,
+        extinction_rate=gamma,
+        seed=seed
+    )
+    return theta, gamma, res["delta_V"]
 
-    for a in model.agents:
-        a.extinction_rate = gamma
-        a.p_high = p_high
-        a.p_low = p_low
-
-    for _ in range(steps):
-        model.step()
-
-    df = model.datacollector.get_model_vars_dataframe()
-    last = df.iloc[-1]
-    vals_low = float(last["Value_Low"])
-    vals_high = float(last["Value_High"])
-    delta_v = vals_high - vals_low
-
-    return theta, gamma, delta_v
-
+# ---------------------------------------------------------------------
+# Batch experiment
+# ---------------------------------------------------------------------
 def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
-    thetas = [0.25, 0.5, 1.0, 2.0, 4.0]
+    thetas = [0.10, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.60, 0.80, 1.0, 2.0, 4.0]
     gammas = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    n_reps = 10
+    n_reps = 100
 
     args = [(theta, gamma, seed, p_high, p_low)
             for theta in thetas
@@ -64,6 +63,10 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     print(f"Saved results to {outdir}")
     return df_mean
 
+
+# ---------------------------------------------------------------------
+# Combined contour plot
+# ---------------------------------------------------------------------
 def plot_combined(df1, df2, p1, p2):
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 3), sharey=True, constrained_layout=True)
 
@@ -83,26 +86,57 @@ def plot_combined(df1, df2, p1, p2):
         Z = df.pivot(index="gamma", columns="theta", values="delta_v").values
         T, G = np.meshgrid(thetas, gammas)
 
-        c = ax.contourf(T, G, Z, levels=levels, cmap=cmap, norm=norm_all)
+        cs = ax.contourf(T, G, Z, levels=levels, cmap=cmap, norm=norm_all)
         ax.set_title(title, fontsize=12)
         ax.set_xlabel(r'$\theta$', fontsize=12)
         ax.tick_params(labelsize=11)
+
         if ax is axes[0]:
             ax.set_ylabel(r'$\gamma$', fontsize=12)
 
-        ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
+        # Add red ΔV=0 contour line
+        contour = ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
 
-    cbar = fig.colorbar(
-        c, ax=axes, orientation='vertical',
-        shrink=0.85, pad=0.04,
-        ticks=[-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0]
-    )
-    cbar.set_label(r'$\Delta V = V_H - V_L$', fontsize=12)
+        # Add x-tick at lowest γ where ΔV=0 occurs
+        if len(contour.allsegs[0]) > 0:
+            segs = contour.allsegs[0]
+            lowest_g = G.min()
+            segs_lowest = [s for s in segs if np.any(np.isclose(s[:,1], lowest_g))]
+            if len(segs_lowest) == 0:
+                segs_lowest = [segs[0]]
+            x_cross = np.concatenate([s[:,0] for s in segs_lowest])
+            if len(x_cross) > 0:
+                x_cross_val = float(np.round(np.mean(x_cross), 2))
+
+                # keep integer ticks except 0, add transition tick
+                base_ticks = [int(t) for t in ax.get_xticks() if t.is_integer() and t != 0]
+                all_ticks = sorted(set(base_ticks + [x_cross_val]))
+                ax.set_xticks(all_ticks)
+
+                # format tick labels
+                labels = [
+                    f"{t:.2f}" if abs(t - x_cross_val) < 1e-3 else f"{int(t)}"
+                    for t in all_ticks
+                ]
+                ax.set_xticklabels(labels)
+
+    # Shared colorbar
+    cbar = fig.colorbar(cs, ax=axes, orientation='vertical',
+                        shrink=0.85, pad=0.04,
+                        ticks=[-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0])
+    cbar.set_label(r'$V_H - V_L$', fontsize=12)
     cbar.ax.tick_params(labelsize=11)
 
-    plt.savefig("resub/theta/{RUN_TIMESTAMP}/combined_contours.png", dpi=600, bbox_inches='tight')
-    plt.savefig("resub/theta/{RUN_TIMESTAMP}/combined_contours.pdf", dpi=600, bbox_inches='tight')
+    outdir = f"resub/theta/{RUN_TIMESTAMP}"
+    os.makedirs(outdir, exist_ok=True)
+    plt.savefig(f"{outdir}/combined_contours.png", dpi=600, bbox_inches='tight')
+    plt.savefig(f"{outdir}/combined_contours.pdf", dpi=600, bbox_inches='tight')
+    plt.show()
 
+
+# ---------------------------------------------------------------------
+# Main entry
+# ---------------------------------------------------------------------
 if __name__ == "__main__":
     df1 = run_experiment(p_high=0.75, p_low=0.5, tag="baseline")
     df2 = run_experiment(p_high=1.0, p_low=0.5, tag="strong_diff")

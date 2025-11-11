@@ -107,19 +107,28 @@ def run_vectorized_learning(p_high=0.9, p_low=0.6, steps=100, theta=3.0, epsilon
 def run_vectorized_simulation(theta=1.5, epsilon=0.05, p_high=0.9, p_low=0.6,
                               steps=100, N=100, width=100, height=100, seed=0,
                               vhigh0=None, vlow0=None,
-                              learning_rate=0.4, extinction_rate=1.0, delta=0.0):
+                              learning_rate=0.4, extinction_rate=1.0, delta=0.0,
+                              record_history=False):
     rng = np.random.default_rng(seed)
 
     x = np.zeros(N, dtype=np.int32)
     y = np.arange(N, dtype=np.int32) % height
+
     value_high = np.full(N, 0.001 if vhigh0 is None else vhigh0, dtype=np.float64)
     value_low  = np.full(N, 0.001 if vlow0 is None else vlow0, dtype=np.float64)
+
     foods_H = np.zeros(N, dtype=np.int32)
     foods_L = np.zeros(N, dtype=np.int32)
 
+    # Allocate history arrays if needed
+    if record_history:
+        V_high_hist = np.zeros(steps, dtype=np.float64)
+        V_low_hist  = np.zeros(steps, dtype=np.float64)
+        deltaV_hist = np.zeros(steps, dtype=np.float64)
+
     grid = build_grid(theta=theta, width=width, height=height, rng=rng)
 
-    for _ in range(steps):
+    for t in range(steps):
         x = (x + 1) % width
         ptype = grid[y, x]
         eat_H = _choose_food(ptype, value_high, value_low, epsilon, rng)
@@ -130,6 +139,12 @@ def run_vectorized_simulation(theta=1.5, epsilon=0.05, p_high=0.9, p_low=0.6,
         _update_values(ptype, eat_H, value_high, value_low,
                        learning_rate, p_high, p_low, extinction_rate, delta)
 
+        # Store history values
+        if record_history:
+            V_high_hist[t] = value_high.mean()
+            V_low_hist[t]  = value_low.mean()
+            deltaV_hist[t] = V_high_hist[t] - V_low_hist[t]
+
     mean_vh = float(value_high.mean())
     mean_vl = float(value_low.mean())
     delta_v = mean_vh - mean_vl
@@ -137,12 +152,19 @@ def run_vectorized_simulation(theta=1.5, epsilon=0.05, p_high=0.9, p_low=0.6,
     denom = np.maximum(foods_H, 1)
     lh_ratio = float(np.nanmean(foods_L / denom))
 
-    return {
+    result = {
         "Value_High": mean_vh,
         "Value_Low": mean_vl,
         "delta_V": delta_v,
         "LH_Ratio": lh_ratio
     }
+
+    if record_history:
+        result["V_high_hist"] = V_high_hist
+        result["V_low_hist"] = V_low_hist
+        result["deltaV_hist"] = deltaV_hist
+
+    return result
 
 if __name__ == "__main__":
 
