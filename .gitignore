@@ -18,7 +18,8 @@ app.py
 .GMB
 .neuron
 .plots
-
+.ref
+.dissonance
 
 # Runtime data
 pids
