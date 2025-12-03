@@ -69,9 +69,9 @@ def build_BA_adjacency(N, m, rng):
 def choose_food(ptype, value_high, value_low, soc_high, soc_low, w_soc, epsilon, rng):
     """
     Hard-coded availability constraints:
-        HH → Must eat High
-        LL → Must eat Low
-        HL → Compare Qh vs Ql (with/without social reinforcement)
+        HH → Must eat High reward
+        LL → Must eat Low reward
+        HL → Compare Vh vs Vl (with/without social reinforcement)
     """
 
     N = value_high.shape[0]
@@ -88,12 +88,12 @@ def choose_food(ptype, value_high, value_low, soc_high, soc_low, w_soc, epsilon,
     if hl_mask.any():
         idx = np.where(hl_mask)[0]
 
-        Qh = value_high[idx] + w_soc * soc_high[idx]
-        Ql = value_low[idx] + w_soc * soc_low[idx]
+        Vh = value_high[idx] + w_soc * soc_high[idx]
+        Vl = value_low[idx] + w_soc * soc_low[idx]
 
-        pref_H = (Qh > Ql)
+        pref_H = (Vh > Vl)
 
-        ties = (Qh == Ql)
+        ties = (Vh == Vl)
         if ties.any():
             pref_H[ties] = rng.random(ties.sum()) < 0.5
 
@@ -108,7 +108,7 @@ def choose_food(ptype, value_high, value_low, soc_high, soc_low, w_soc, epsilon,
 
 
 # ==========================================================
-# VALUE-UPDATING FUNCTION 
+# VALUE-UPDATING FUNCTION
 # ==========================================================
 def update_values(ptype, eat_H, value_high, value_low,
                   p_high, p_low, learning_rate, extinction_rate, delta):
@@ -151,16 +151,21 @@ def update_values(ptype, eat_H, value_high, value_low,
 
 
 # ==========================================================
-# SOCIAL UPDATE FUNCTION
+# SOCIAL REINFORCEMENT FUNCTION
 # ==========================================================
 def update_social(A, eat_H, soc_high, soc_low, learning_rate, deg_safe):
     prop_high = A.dot(eat_H) / deg_safe
+    prop_low = 1.0 - prop_high
 
-    lambda_high = prop_high
-    lambda_low = 1.0 - prop_high
+    same_choice = np.where(eat_H, prop_high, prop_low)
 
-    soc_high += learning_rate * (lambda_high - soc_high)
-    soc_low += learning_rate * (lambda_low - soc_low)
+    r_social = 2.0 * same_choice - 1.0
+
+    idxH = eat_H
+    soc_high[idxH] += learning_rate * (r_social[idxH] - soc_high[idxH])
+
+    idxL = ~eat_H
+    soc_low[idxL] += learning_rate * (r_social[idxL] - soc_low[idxL])
 
 
 # ==========================================================
@@ -172,23 +177,54 @@ def run_vectorized_simulation(theta=1.5, epsilon=0.05,
                               seed=0, vhigh0=None, vlow0=None,
                               learning_rate=0.3, extinction_rate=1.0,
                               w_soc=0.5, delta=0.0,
-                              record_history=False):
+                              record_history=False,
+                              A_override=None,
+                              soc_high0=None, soc_low0=None):
 
     rng = np.random.default_rng(seed)
 
     x = np.zeros(N, dtype=np.int32)
     y = np.arange(N, dtype=np.int32) % height
 
-    value_high = np.full(N, 0.001 if vhigh0 is None else vhigh0, dtype=np.float64)
-    value_low  = np.full(N, 0.001 if vlow0 is None else vlow0, dtype=np.float64)
+    # ---------- reward value init: handle scalar or vector ----------
+    if vhigh0 is None:
+        value_high = np.full(N, 0.001, dtype=np.float64)
+    else:
+        vhigh0_arr = np.array(vhigh0, dtype=np.float64)
+        if vhigh0_arr.shape == ():  # scalar
+            value_high = np.full(N, float(vhigh0_arr), dtype=np.float64)
+        else:
+            value_high = vhigh0_arr.copy()
 
-    soc_high = np.zeros(N, dtype=np.float64)
-    soc_low  = np.zeros(N, dtype=np.float64)
+    if vlow0 is None:
+        value_low = np.full(N, 0.001, dtype=np.float64)
+    else:
+        vlow0_arr = np.array(vlow0, dtype=np.float64)
+        if vlow0_arr.shape == ():
+            value_low = np.full(N, float(vlow0_arr), dtype=np.float64)
+        else:
+            value_low = vlow0_arr.copy()
+
+    # ---------- social value init: allow priors ----------
+    if soc_high0 is not None:
+        soc_high = np.array(soc_high0, dtype=np.float64).copy()
+    else:
+        soc_high = np.zeros(N, dtype=np.float64)
+
+    if soc_low0 is not None:
+        soc_low = np.array(soc_low0, dtype=np.float64).copy()
+    else:
+        soc_low = np.zeros(N, dtype=np.float64)
 
     foods_H = np.zeros(N, dtype=np.int32)
     foods_L = np.zeros(N, dtype=np.int32)
 
-    A = build_BA_adjacency(N, m=3, rng=rng)
+    # ---------- network: allow override / freezing ----------
+    if A_override is not None:
+        A = A_override
+    else:
+        A = build_BA_adjacency(N, m=1, rng=rng)
+
     deg = np.array(A.sum(axis=1)).flatten()
     deg_safe = np.maximum(deg, 1)
 
@@ -255,4 +291,9 @@ def run_vectorized_simulation(theta=1.5, epsilon=0.05,
         result["V_low_hist"] = V_low_hist
         result["deltaV_hist"] = deltaV_hist
 
-    return result
+    result["value_high_vec"] = value_high.copy()
+    result["value_low_vec"] = value_low.copy()
+    result["soc_high_vec"] = soc_high.copy()
+    result["soc_low_vec"] = soc_low.copy()
+
+    return result, A
