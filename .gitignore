@@ -20,6 +20,7 @@ app.py
 .plots
 .ref
 .dissonance
+.social
 
 # Runtime data
 pids
