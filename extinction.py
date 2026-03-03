@@ -36,18 +36,21 @@ def run_single_sim(args):
     )
     return theta, gamma, res["delta_V"]
 
+
 # ---------------------------------------------------------------------
 # Batch experiment
 # ---------------------------------------------------------------------
 def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
-    thetas = [0.10, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.60, 0.80, 1.0, 2.0, 4.0]
-    gammas = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    n_reps = 100
+    thetas = np.linspace(0,1,21)
+    gammas = np.linspace(0,1,21)
+    n_reps = 20
 
-    args = [(theta, gamma, seed, p_high, p_low)
-            for theta in thetas
-            for gamma in gammas
-            for seed in range(n_reps)]
+    args = [
+        (theta, gamma, seed, p_high, p_low)
+        for theta in thetas
+        for gamma in gammas
+        for seed in range(n_reps)
+    ]
 
     print(f"Running {len(args)} simulations for p_high={p_high}, p_low={p_low}...")
 
@@ -88,42 +91,26 @@ def plot_combined(df1, df2, p1, p2):
 
         cs = ax.contourf(T, G, Z, levels=levels, cmap=cmap, norm=norm_all)
         ax.set_title(title, fontsize=12)
-        ax.set_xlabel(r'$\theta$', fontsize=12)
+        ax.set_xlabel(r'$P(H)$', fontsize=12)
         ax.tick_params(labelsize=11)
 
         if ax is axes[0]:
             ax.set_ylabel(r'$\gamma$', fontsize=12)
 
-        # Add red ΔV=0 contour line
-        contour = ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
-
-        # Add x-tick at lowest γ where ΔV=0 occurs
-        if len(contour.allsegs[0]) > 0:
-            segs = contour.allsegs[0]
-            lowest_g = G.min()
-            segs_lowest = [s for s in segs if np.any(np.isclose(s[:,1], lowest_g))]
-            if len(segs_lowest) == 0:
-                segs_lowest = [segs[0]]
-            x_cross = np.concatenate([s[:,0] for s in segs_lowest])
-            if len(x_cross) > 0:
-                x_cross_val = float(np.round(np.mean(x_cross), 2))
-
-                # keep integer ticks except 0, add transition tick
-                base_ticks = [int(t) for t in ax.get_xticks() if t.is_integer() and t != 0]
-                all_ticks = sorted(set(base_ticks + [x_cross_val]))
-                ax.set_xticks(all_ticks)
-
-                # format tick labels
-                labels = [
-                    f"{t:.2f}" if abs(t - x_cross_val) < 1e-3 else f"{int(t)}"
-                    for t in all_ticks
-                ]
-                ax.set_xticklabels(labels)
+        # Add red DeltaV=0 contour line
+        ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
+        ax.set_xlim(0.0, 1.0)
+        ax.set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
 
     # Shared colorbar
-    cbar = fig.colorbar(cs, ax=axes, orientation='vertical',
-                        shrink=0.85, pad=0.04,
-                        ticks=[-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0])
+    cbar = fig.colorbar(
+        cs,
+        ax=axes,
+        orientation='vertical',
+        shrink=0.85,
+        pad=0.04,
+        ticks=[-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0]
+    )
     cbar.set_label(r'$V_H - V_L$', fontsize=12)
     cbar.ax.tick_params(labelsize=11)
 
@@ -134,6 +121,64 @@ def plot_combined(df1, df2, p1, p2):
     plt.show()
 
 
+def summarize_extinction_widening(df, label):
+    gmin = float(df["gamma"].min())
+    gmax = float(df["gamma"].max())
+
+    low = df[np.isclose(df["gamma"], gmin)][["theta", "delta_v"]].rename(
+        columns={"delta_v": "delta_v_gamma_min"}
+    )
+    high = df[np.isclose(df["gamma"], gmax)][["theta", "delta_v"]].rename(
+        columns={"delta_v": "delta_v_gamma_max"}
+    )
+
+    merged = low.merge(high, on="theta", how="inner")
+    merged["widening"] = merged["delta_v_gamma_max"] - merged["delta_v_gamma_min"]
+    merged["condition"] = label
+    merged["gamma_min"] = gmin
+    merged["gamma_max"] = gmax
+    return merged
+
+
+def plot_widening(merged1, merged2):
+    fig, ax = plt.subplots(1, 1, figsize=(4.2, 3.0), constrained_layout=True)
+    viridis = plt.cm.viridis
+    line_colors = [viridis(0.15), viridis(0.75)]
+
+    gmin = merged1["gamma_min"].iloc[0]
+    gmax = merged1["gamma_max"].iloc[0]
+    ax.plot(
+        merged1["theta"],
+        merged1["widening"],
+        marker="o",
+        linewidth=1.4,
+        markersize=3.0,
+        color=line_colors[0],
+        label="150%"
+    )
+    ax.plot(
+        merged2["theta"],
+        merged2["widening"],
+        marker="s",
+        linewidth=1.4,
+        markersize=3.0,
+        color=line_colors[1],
+        label="200%"
+    )
+
+    ax.axhline(0.0, color="black", linewidth=0.8, linestyle="--")
+    ax.set_xlabel(r'$P(H)$', fontsize=12)
+    ax.set_ylabel(rf'$(V_H - V_L)\vert_{{\gamma={gmax:.0f}}} - (V_H - V_L)\vert_{{\gamma={gmin:.0f}}}$', fontsize=12)
+    ax.tick_params(labelsize=11)
+    ax.set_xlim(0.0, 1.0)
+    ax.legend(frameon=False, fontsize=10)
+
+    outdir = f"resub/theta/{RUN_TIMESTAMP}"
+    os.makedirs(outdir, exist_ok=True)
+    plt.savefig(f"{outdir}/extinction_widening.png", dpi=600, bbox_inches='tight')
+    plt.savefig(f"{outdir}/extinction_widening.pdf", dpi=600, bbox_inches='tight')
+    plt.show()
+
 # ---------------------------------------------------------------------
 # Main entry
 # ---------------------------------------------------------------------
@@ -141,3 +186,11 @@ if __name__ == "__main__":
     df1 = run_experiment(p_high=0.75, p_low=0.5, tag="baseline")
     df2 = run_experiment(p_high=1.0, p_low=0.5, tag="strong_diff")
     plot_combined(df1, df2, (0.75, 0.5), (1.0, 0.5))
+
+    widening1 = summarize_extinction_widening(df1, "150%")
+    widening2 = summarize_extinction_widening(df2, "200%")
+    plot_widening(widening1, widening2)
+
+    outdir = f"resub/theta/{RUN_TIMESTAMP}"
+    widening1.to_csv(f"{outdir}/extinction_widening_150.csv", index=False)
+    widening2.to_csv(f"{outdir}/extinction_widening_200.csv", index=False)

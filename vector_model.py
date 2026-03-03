@@ -4,7 +4,8 @@ def build_grid(theta, width, height, rng):
     total_cells = width * height
     total_patches = 2 * total_cells
 
-    total_h = int(round(total_patches * (theta / (1.0 + theta))))
+    # Interpret theta as a direct proportion of high patches (0..1).
+    total_h = int(round(total_patches * theta))
     total_h = min(max(total_h, 0), total_patches)
 
     patches = np.zeros(total_patches, dtype=np.int8)

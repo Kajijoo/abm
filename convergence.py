@@ -53,7 +53,7 @@ def run_single_convergence(args):
 # ================================================================
 def run_convergence_experiment():
     alphas = [0.1, 0.3, 0.6, 1.0]
-    n_reps = 1000
+    n_reps = 100
     args = [(alpha, seed) for alpha in alphas for seed in range(n_reps)]
 
     print(f"Running {len(args)} simulations ({len(alphas)} α values × {n_reps} reps)...")

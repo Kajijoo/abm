@@ -12,13 +12,13 @@ STEPS = 100
 N = 100
 WIDTH, HEIGHT = 100, 100
 
-THETA_PRE = 3.0
-THETA_POST_LIST = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+THETA_PRE = 0.759
+THETA_POST_LIST = np.linspace(0, 1, 21)
 
 P_LOW = 0.5
-P_HIGH_LIST = np.linspace(0.50, 2.0, 20)
+P_HIGH_LIST = np.linspace(0.50, 2.0, 21)
 
-N_REPS = 100
+N_REPS = 20
 
 # ===================== Worker =====================
 def worker_sim(args):
@@ -96,8 +96,8 @@ def plot_lockin_surface(df, outdir):
     cs = plt.contourf(R, T, Z, levels=levels, cmap=plt.cm.viridis)
     plt.contour(R, T, Z, levels=[0], colors='red', linewidths=1.2)
 
-    plt.xlabel("Reward contrast (pH / pL)", fontsize=12)
-    plt.ylabel(r'$\theta$', fontsize=12)
+    plt.xlabel(r"Reward contrast ($\lambda_H$ / $\lambda_L$)", fontsize=12)
+    plt.ylabel(r'$P(H)$', fontsize=12)
 
     cbar = plt.colorbar(cs, ticks=[-0.5, 0, 0.5, 1.0, 1.5, 2.0])
     cbar.set_label(r'$V_H - V_L$', fontsize=12)

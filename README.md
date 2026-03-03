@@ -1,3 +1,2 @@
-In this GitHub you can find an agent-based model that uses reinforcement learning to see how agents' food reinforcement learning changes over time based on experienced food rewards.
-It extends a previous agent-based model by Hammond et al. (2012) with Rescorla-Wagner and extinction. This enabled us to simulate interventions targeted at the individual and at the food environment.
+In this GitHub you can find an agent-based model that uses reinforcement learning to see how agents' food reinforcement learning changes over time based on experienced food rewards as a result of extinction.
 There is an object-oriented version of the model in the mesa_model folder. The same model is also available as a vectorized model in vector_model.py.
