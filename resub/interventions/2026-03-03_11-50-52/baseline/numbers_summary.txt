@@ -1,0 +1,15 @@
+Red contour definition: V_H - V_L = 0
+
+Primary thresholds:
+- Lowest epsilon on contour: epsilon = 0.1491796677436009 at P(H) = 0.10
+- Smallest P(H) on contour: P(H) = 0.03870789903226879 at epsilon = 0.45
+- Largest P(H) on contour: P(H) = 0.21550803961671666 at epsilon = 0.85
+- Largest epsilon on contour: epsilon = 1.0 at P(H) = 0.045679484405300584
+
+Crossings by epsilon slice:
+- epsilon = 0.0: no crossing
+- epsilon = 1.0: P(H) = 0.045679484405 and P(H) = 0.180669294964
+
+Negative region diagnostics:
+- Sampled epsilon values with any V_H - V_L < 0: from 0.15 to 1.0
+- Global minimum delta_v: -0.091031162144956 at epsilon = 0.3, P(H) = 0.1

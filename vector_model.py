@@ -83,15 +83,15 @@ def _update_values(ptype, eat_H, value_high, value_low, lr, p_high, p_low, extin
         value_low[idx] = vl + lr * (p_low - vl)
 
 
-def run_vectorized_learning(p_high=0.9, p_low=0.6, steps=100, theta=3.0, epsilon=0.05,
+def run_vectorized_learning(p_high=0.9, p_low=0.6, steps=100, theta=0.759, epsilon=0.05,
                             N=100, width=100, height=100, seed=123, learning_rate=0.3,
                             extinction_rate=1.0, delta=0.0):
     rng = np.random.default_rng(seed)
 
     x = np.zeros(N, dtype=np.int32)
     y = np.arange(N, dtype=np.int32) % height
-    value_high = np.full(N, 0.001, dtype=np.float64)
-    value_low  = np.full(N, 0.001, dtype=np.float64)
+    value_high = np.full(N, 0.0, dtype=np.float64)
+    value_low  = np.full(N, 0.0, dtype=np.float64)
 
     grid = build_grid(theta=theta, width=width, height=height, rng=rng)
 
@@ -105,18 +105,18 @@ def run_vectorized_learning(p_high=0.9, p_low=0.6, steps=100, theta=3.0, epsilon
     return float(value_high.mean()), float(value_low.mean())
 
 
-def run_vectorized_simulation(theta=1.5, epsilon=0.05, p_high=0.9, p_low=0.6,
+def run_vectorized_simulation(theta=0.759, epsilon=0.05, p_high=0.9, p_low=0.6,
                               steps=100, N=100, width=100, height=100, seed=0,
                               vhigh0=None, vlow0=None,
-                              learning_rate=0.4, extinction_rate=1.0, delta=0.0,
+                              learning_rate=0.3, extinction_rate=1.0, delta=0.0,
                               record_history=False):
     rng = np.random.default_rng(seed)
 
     x = np.zeros(N, dtype=np.int32)
     y = np.arange(N, dtype=np.int32) % height
 
-    value_high = np.full(N, 0.001 if vhigh0 is None else vhigh0, dtype=np.float64)
-    value_low  = np.full(N, 0.001 if vlow0 is None else vlow0, dtype=np.float64)
+    value_high = np.full(N, 0.0 if vhigh0 is None else vhigh0, dtype=np.float64)
+    value_low  = np.full(N, 0.0 if vlow0 is None else vlow0, dtype=np.float64)
 
     foods_H = np.zeros(N, dtype=np.int32)
     foods_L = np.zeros(N, dtype=np.int32)
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     vH0, vL0 = run_vectorized_learning(
         p_high=0.9,
         p_low=0.6,
-        theta=4.0,
+        theta=0.759,
         epsilon=0.05,
         steps=100,
         N=100,

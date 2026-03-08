@@ -1,0 +1,9 @@
+Red contour definition: V_H - V_L = 0
+
+Crossings (interpolated P(H) where V_H - V_L = 0):
+- gamma = 0.0: P(H) = 0.10803107445818627
+- gamma = 1.0: P(H) = 0.1609213150875301
+
+Sampled range with V_H - V_L < 0:
+- gamma = 0.0: P(H) from 0.00 to 0.10
+- gamma = 1.0: P(H) from 0.00 to 0.15

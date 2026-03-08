@@ -15,10 +15,11 @@ mpl.rcParams['font.family'] = 'Arial'
 # Timestamped root folder
 RUN_TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
+
 # ---------------------------------------------------------------------
 # Learning phase
 # ---------------------------------------------------------------------
-def run_learning(p_high, p_low, steps=100, theta=0.759, epsilon=0.0, N=10000, seed=123):
+def run_learning(p_high, p_low, steps=100, theta=0.759, epsilon=0.0, N=100, seed=123):
     np.random.seed(seed)
     vH, vL = run_vectorized_learning(
         p_high=p_high, p_low=p_low, theta=theta, epsilon=epsilon,
@@ -61,29 +62,61 @@ def run_single_sim(args):
 # ---------------------------------------------------------------------
 # Plots
 # ---------------------------------------------------------------------
-def plot_lh_ratio_heatmap(df, outdir):
+def _lh_surface(df):
     thetas = np.sort(df["theta"].unique())
     eps = np.sort(df["epsilon"].unique())
-    Z_ratio = df.pivot(index="epsilon", columns="theta", values="LH_Ratio").values
-    Z = Z_ratio / (1.0 + Z_ratio)
-    Z = np.clip(Z, 0.0, 1.0)
-    T, E = np.meshgrid(thetas, eps)
+    z_ratio = df.pivot(index="epsilon", columns="theta", values="LH_Ratio").values
+    z_share = z_ratio / (1.0 + z_ratio)
+    z_share = np.clip(z_share, 0.0, 1.0)
+    t_grid, e_grid = np.meshgrid(thetas, eps)
+    return t_grid, e_grid, z_share
+
+
+def plot_lh_ratio_heatmap(df, outdir):
+    T, E, Z = _lh_surface(df)
 
     fig, ax = plt.subplots(figsize=(4.0, 3.2), constrained_layout=True)
     levels = np.linspace(0.0, 1.0, 21)
     cs = ax.contourf(T, E, Z, levels=levels, cmap="viridis", vmin=0.0, vmax=1.0)
+    ax.contour(T, E, Z, levels=[0.5], colors="red", linewidths=1.2)
 
     ax.set_xlabel(r'$P(H)$', fontsize=12)
     ax.set_ylabel(r'$\epsilon$', fontsize=12)
     ax.tick_params(labelsize=11)
 
     cbar = fig.colorbar(cs, ax=ax, shrink=0.9, pad=0.02, ticks=np.linspace(0.0, 1.0, 6))
-    cbar.set_label(rf'$L/(L+H)$ consumption', fontsize=11)
+    cbar.set_label(r'$L/(L+H)$ consumption', fontsize=11)
     cbar.ax.tick_params(labelsize=10)
 
     plt.savefig(f"{outdir}/lh_ratio_heatmap.png", dpi=600, bbox_inches="tight")
     plt.savefig(f"{outdir}/lh_ratio_heatmap.pdf", dpi=600, bbox_inches="tight")
 
+
+def plot_lh_ratio_combined(df1, df2, root_outdir):
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3), sharey=True, constrained_layout=True)
+    plots = [(axes[0], df1, "150%"), (axes[1], df2, "200%")]
+    levels = np.linspace(0.0, 1.0, 21)
+
+    for ax, df, title in plots:
+        T, E, Z = _lh_surface(df)
+        cs = ax.contourf(T, E, Z, levels=levels, cmap="viridis", vmin=0.0, vmax=1.0)
+        ax.contour(T, E, Z, levels=[0.5], colors="red", linewidths=1.2)
+        ax.set_title(title, fontsize=12)
+        ax.set_xlabel(r'$P(H)$', fontsize=12)
+        ax.tick_params(labelsize=11)
+        xticks = np.linspace(0.0, 1.0, 6)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels([f"{x:.1f}" for x in xticks])
+        if ax is axes[0]:
+            ax.set_ylabel(r'$\epsilon$', fontsize=12)
+
+    cbar = fig.colorbar(cs, ax=axes, orientation='vertical', shrink=0.85,
+                        pad=0.04, ticks=np.linspace(0.0, 1.0, 6))
+    cbar.set_label(r'$L/(L+H)$ consumption', fontsize=12)
+    cbar.ax.tick_params(labelsize=11)
+
+    plt.savefig(f"{root_outdir}/lh_ratio_combined.png", dpi=600, bbox_inches='tight')
+    plt.savefig(f"{root_outdir}/lh_ratio_combined.pdf", dpi=600, bbox_inches='tight')
 
 
 def plot_combined(df1, df2, p1, p2):
@@ -117,9 +150,8 @@ def plot_combined(df1, df2, p1, p2):
         if ax is axes[0]:
             ax.set_ylabel(r'$\epsilon$', fontsize=12)
 
-        # Add ΔV=0 contour line (red)
+        # Add DeltaV=0 contour line (red)
         ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
-
 
     # Shared colorbar
     cbar = fig.colorbar(cs, ax=axes, orientation='vertical', shrink=0.85,
@@ -137,11 +169,11 @@ def plot_combined(df1, df2, p1, p2):
 # Experiment
 # ---------------------------------------------------------------------
 def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
-    vhigh0, vlow0 = run_learning(p_high, p_low, steps=100, theta=3.0, epsilon=0)
+    vhigh0, vlow0 = run_learning(p_high, p_low, steps=100, theta=0.759, epsilon=0)
     print(f"Pre-learning ({p_high}, {p_low}) -> V_H0={vhigh0:.4f}, V_L0={vlow0:.4f}")
 
-    thetas =    np.linspace(0, 1, 21)
-    epsilons =  np.linspace(0, 1, 21)
+    thetas = np.linspace(0, 1, 21)
+    epsilons = np.linspace(0, 1, 21)
     n_reps = 20
 
     args = [(theta, epsilon, seed, p_high, p_low, vhigh0, vlow0)
@@ -169,6 +201,7 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
     print(f"Saved results to {outdir}")
     return df_mean
 
+
 # ---------------------------------------------------------------------
 # Entry point with total runtime
 # ---------------------------------------------------------------------
@@ -178,6 +211,7 @@ if __name__ == "__main__":
     df1 = run_experiment(p_high=0.75, p_low=0.5, tag="baseline")
     df2 = run_experiment(p_high=1.0, p_low=0.5, tag="strong_diff")
     plot_combined(df1, df2, (0.75, 0.5), (1.0, 0.5))
+    plot_lh_ratio_combined(df1, df2, f"resub/interventions/{RUN_TIMESTAMP}")
 
     total_time = time.time() - start_time
     print(f"\n=== Total runtime: {total_time/60:.2f} minutes ===")
