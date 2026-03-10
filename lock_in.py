@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import os, time
 from datetime import datetime
 from multiprocessing import Pool, cpu_count
@@ -92,8 +93,15 @@ def plot_lockin_surface(df, outdir):
     R, T = np.meshgrid(ratios, thetas)
 
     plt.figure(figsize=(7,5))
-    levels = np.linspace(Z.min(), Z.max(), 30)
-    cs = plt.contourf(R, T, Z, levels=levels, cmap=plt.cm.viridis)
+    vmin = float(np.nanmin(Z))
+    vmax = float(np.nanmax(Z))
+    if vmin >= 0.0:
+        vmin = -1e-9
+    if vmax <= 0.0:
+        vmax = 1e-9
+    norm = mpl.colors.TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+    levels = np.linspace(vmin, vmax, 30)
+    cs = plt.contourf(R, T, Z, levels=levels, cmap=plt.cm.coolwarm, norm=norm)
     plt.contour(R, T, Z, levels=[0], colors='red', linewidths=1.2)
 
     plt.xlabel(r"Reward contrast ($\lambda_H$ / $\lambda_L$)", fontsize=12)

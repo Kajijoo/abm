@@ -78,9 +78,9 @@ def plot_combined(df1, df2, p1, p2):
         (axes[1], df2, p2, '200%')
     ]
 
-    cmap = plt.cm.viridis
+    cmap = plt.cm.coolwarm
     vmin_all, vmax_all = -0.5, 1.0
-    norm_all = mpl.colors.Normalize(vmin=vmin_all, vmax=vmax_all)
+    norm_all = mpl.colors.TwoSlopeNorm(vmin=vmin_all, vcenter=0.0, vmax=vmax_all)
     levels = np.linspace(vmin_all, vmax_all, 21)
 
     for ax, df, (p_high, p_low), title in plots:
@@ -97,7 +97,6 @@ def plot_combined(df1, df2, p1, p2):
         if ax is axes[0]:
             ax.set_ylabel(r'$\gamma$', fontsize=12)
 
-        # Add red DeltaV=0 contour line
         ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
         ax.set_xlim(0.0, 1.0)
         ax.set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
@@ -142,8 +141,8 @@ def summarize_extinction_widening(df, label):
 
 def plot_widening(merged1, merged2):
     fig, ax = plt.subplots(1, 1, figsize=(4.2, 3.0), constrained_layout=True)
-    viridis = plt.cm.viridis
-    line_colors = [viridis(0.15), viridis(0.75)]
+    coolwarm = plt.cm.coolwarm
+    line_colors = [coolwarm(0.15), coolwarm(0.85)]
 
     gmin = merged1["gamma_min"].iloc[0]
     gmax = merged1["gamma_max"].iloc[0]

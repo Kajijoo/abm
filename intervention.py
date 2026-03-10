@@ -77,7 +77,7 @@ def plot_lh_ratio_heatmap(df, outdir):
 
     fig, ax = plt.subplots(figsize=(4.0, 3.2), constrained_layout=True)
     levels = np.linspace(0.0, 1.0, 21)
-    cs = ax.contourf(T, E, Z, levels=levels, cmap="viridis", vmin=0.0, vmax=1.0)
+    cs = ax.contourf(T, E, Z, levels=levels, cmap="coolwarm_r", vmin=0.0, vmax=1.0)
     ax.contour(T, E, Z, levels=[0.5], colors="red", linewidths=1.2)
 
     ax.set_xlabel(r'$P(H)$', fontsize=12)
@@ -99,7 +99,7 @@ def plot_lh_ratio_combined(df1, df2, root_outdir):
 
     for ax, df, title in plots:
         T, E, Z = _lh_surface(df)
-        cs = ax.contourf(T, E, Z, levels=levels, cmap="viridis", vmin=0.0, vmax=1.0)
+        cs = ax.contourf(T, E, Z, levels=levels, cmap="coolwarm_r", vmin=0.0, vmax=1.0)
         ax.contour(T, E, Z, levels=[0.5], colors="red", linewidths=1.2)
         ax.set_title(title, fontsize=12)
         ax.set_xlabel(r'$P(H)$', fontsize=12)
@@ -128,9 +128,9 @@ def plot_combined(df1, df2, p1, p2):
         (axes[1], df2, p2, '200%')
     ]
 
-    cmap = plt.cm.viridis
+    cmap = plt.cm.coolwarm
     vmin_all, vmax_all = -0.5, 1.0
-    norm_all = mpl.colors.Normalize(vmin=vmin_all, vmax=vmax_all)
+    norm_all = mpl.colors.TwoSlopeNorm(vmin=vmin_all, vcenter=0.0, vmax=vmax_all)
     levels = np.linspace(vmin_all, vmax_all, 21)
 
     for ax, df, (p_high, p_low), title in plots:
@@ -150,7 +150,6 @@ def plot_combined(df1, df2, p1, p2):
         if ax is axes[0]:
             ax.set_ylabel(r'$\epsilon$', fontsize=12)
 
-        # Add DeltaV=0 contour line (red)
         ax.contour(T, G, Z, levels=[0], colors='red', linewidths=1.2)
 
     # Shared colorbar
