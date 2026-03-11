@@ -12,7 +12,7 @@ from vector_model import run_vectorized_learning, run_vectorized_simulation
 
 # ===================== CONFIG =====================
 EPSILON_POST = 0.05
-EPSILON_PRE = 0.05
+EPSILON_PRE = 0.0
 STEPS = 100
 N = 100
 WIDTH, HEIGHT = 100, 100
@@ -97,15 +97,16 @@ def run_reward_intervention_surface(pre_p_high):
         ],
     )
     df_mean = df.groupby(["theta_post", "p_high_post"], as_index=False).mean()
+    df_mean["reward_contrast"] = df_mean["p_high_post"] / P_LOW
     return vH0, vL0, df, df_mean
 
 
-def _mesh(df_mean, value_col):
+def _mesh(df_mean, value_col, y_col="reward_contrast"):
     thetas = np.sort(df_mean["theta_post"].unique())
-    p_highs = np.sort(df_mean["p_high_post"].unique())
-    z = df_mean.pivot(index="p_high_post", columns="theta_post", values=value_col).values
-    t_grid, p_grid = np.meshgrid(thetas, p_highs)
-    return t_grid, p_grid, z
+    y_vals = np.sort(df_mean[y_col].unique())
+    z = df_mean.pivot(index=y_col, columns="theta_post", values=value_col).values
+    t_grid, y_grid = np.meshgrid(thetas, y_vals)
+    return t_grid, y_grid, z
 
 
 def _zero_centered_norm(*arrays):
@@ -119,6 +120,89 @@ def _zero_centered_norm(*arrays):
     return mpl.colors.TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
 
 
+def _contour_crossings(df_mean, value_col, level=0.0):
+    """Interpolate contour crossings as theta_post values per reward contrast."""
+    crossings = []
+    for contrast, grp in df_mean.groupby("reward_contrast"):
+        grp = grp.sort_values("theta_post")
+        theta = grp["theta_post"].to_numpy()
+        values = grp[value_col].to_numpy()
+
+        shifted = values - level
+        exact = theta[np.isclose(shifted, 0.0, atol=1e-12)]
+        for t in exact:
+            crossings.append((float(contrast), float(t), "exact"))
+
+        for i in range(len(theta) - 1):
+            x1, x2 = theta[i], theta[i + 1]
+            y1, y2 = shifted[i], shifted[i + 1]
+            if y1 == 0.0 or y2 == 0.0:
+                continue
+            if y1 * y2 < 0.0:
+                t0 = x1 - y1 * (x2 - x1) / (y2 - y1)
+                crossings.append((float(contrast), float(t0), "interpolated"))
+
+    if not crossings:
+        return []
+
+    crossings.sort(key=lambda x: (x[0], x[1]))
+    deduped = []
+    for c in crossings:
+        if not deduped or (abs(deduped[-1][0] - c[0]) > 1e-12 or abs(deduped[-1][1] - c[1]) > 1e-12):
+            deduped.append(c)
+    return deduped
+
+
+def write_numbers_summary(df_mean, outdir):
+    path = os.path.join(outdir, "numbers_summary.txt")
+    delta_v_crossings = _contour_crossings(df_mean, "delta_v", level=0.0)
+    df_lh = df_mean.copy()
+    df_lh["lh_share"] = np.clip(df_lh["LH_Ratio"] / (1.0 + df_lh["LH_Ratio"]), 0.0, 1.0)
+    lh_share_crossings = _contour_crossings(df_lh, "lh_share", level=0.5)
+
+    with open(path, "w") as f:
+        f.write("Red contour definition: V_H - V_L = 0 (learning shift boundary)\n\n")
+
+        if delta_v_crossings:
+            c_df = pd.DataFrame(delta_v_crossings, columns=["reward_contrast", "theta_cross", "kind"])
+            f.write("Contour summary (interpolated where needed):\n")
+            f.write(f"- Minimum required P(H) = {c_df['theta_cross'].min():.6f}\n")
+            f.write(f"- Maximum required P(H) = {c_df['theta_cross'].max():.6f}\n")
+            f.write(f"- Maximum reward contrast on contour = {c_df['reward_contrast'].max():.6f}\n")
+        else:
+            f.write("Contour status:\n")
+            f.write("- No V_H - V_L = 0 crossing in this run.\n")
+
+        shifted = df_mean[df_mean["delta_v"] < 0.0]
+        f.write("\nSampled region with learning shifted toward low-reward food (V_H - V_L < 0):\n")
+        if shifted.empty:
+            f.write("- None in sampled grid.\n")
+        else:
+            f.write(
+                f"- P(H) range = {shifted['theta_post'].min():.2f} to {shifted['theta_post'].max():.2f}\n"
+            )
+            f.write(
+                f"- Reward contrast range = {shifted['reward_contrast'].min():.2f} to {shifted['reward_contrast'].max():.2f}\n"
+            )
+
+        f.write("\nRed contour definition: L/(L+H) consumption = 0.5\n")
+        if lh_share_crossings:
+            c_lh = pd.DataFrame(lh_share_crossings, columns=["reward_contrast", "theta_cross", "kind"])
+            for target_contrast in (1.0, 2.0):
+                at_target = c_lh[np.isclose(c_lh["reward_contrast"], target_contrast, atol=1e-12)]
+                if at_target.empty:
+                    f.write(
+                        f"- Reward contrast {target_contrast:.1f}: no 0.5 contour crossing in sampled P(H) range.\n"
+                    )
+                else:
+                    f.write(
+                        f"- Reward contrast {target_contrast:.1f}: minimum P(H) = {at_target['theta_cross'].min():.6f}, "
+                        f"maximum P(H) = {at_target['theta_cross'].max():.6f}\n"
+                    )
+        else:
+            f.write("- No L/(L+H) = 0.5 contour crossing in this run.\n")
+
+
 def plot_delta_v_surface(df_mean, outdir):
     t_grid, p_grid, z = _mesh(df_mean, "delta_v")
     norm = _zero_centered_norm(z)
@@ -129,7 +213,7 @@ def plot_delta_v_surface(df_mean, outdir):
     ax.contour(t_grid, p_grid, z, levels=[0.0], colors="red", linewidths=1.2)
 
     ax.set_xlabel(r"$P(H)$", fontsize=12)
-    ax.set_ylabel(r"$\lambda_H$", fontsize=12)
+    ax.set_ylabel(r"Reward contrast ($\lambda_H / \lambda_L$)", fontsize=12)
     ax.tick_params(labelsize=11)
 
     cbar = fig.colorbar(
@@ -137,7 +221,7 @@ def plot_delta_v_surface(df_mean, outdir):
         ax=ax,
         shrink=0.9,
         pad=0.02,
-        ticks=[-0.5, 0.0, 0.5, 0,9],
+        ticks=[-0.5, 0.0, 0.5, 1.0],
     )
     cbar.set_label(r"$V_H - V_L$", fontsize=11)
     cbar.ax.tick_params(labelsize=10)
@@ -156,7 +240,7 @@ def plot_lh_share_surface(df_mean, outdir):
     ax.contour(t_grid, p_grid, z_share, levels=[0.5], colors="red", linewidths=1.2)
 
     ax.set_xlabel(r"$P(H)$", fontsize=12)
-    ax.set_ylabel(r"$\lambda_H$", fontsize=12)
+    ax.set_ylabel(r"Reward contrast ($\lambda_H / \lambda_L$)", fontsize=12)
     ax.tick_params(labelsize=11)
 
     cbar = fig.colorbar(cs, ax=ax, shrink=0.9, pad=0.02, ticks=np.linspace(0.0, 1.0, 6))
@@ -183,7 +267,7 @@ def plot_delta_v_combined(df_150, df_200, outdir):
         ax.set_xlabel(r"$P(H)$", fontsize=12)
         ax.tick_params(labelsize=11)
         if ax is axes[0]:
-            ax.set_ylabel(r"$\lambda_H$", fontsize=12)
+            ax.set_ylabel(r"Reward contrast ($\lambda_H / \lambda_L$)", fontsize=12)
 
     cbar = fig.colorbar(
         cs,
@@ -214,7 +298,7 @@ def plot_lh_share_combined(df_150, df_200, outdir):
         ax.set_xlabel(r"$P(H)$", fontsize=12)
         ax.tick_params(labelsize=11)
         if ax is axes[0]:
-            ax.set_ylabel(r"$\lambda_H$", fontsize=12)
+            ax.set_ylabel(r"Reward contrast ($\lambda_H / \lambda_L$)", fontsize=12)
 
     cbar = fig.colorbar(
         cs,
@@ -256,6 +340,7 @@ if __name__ == "__main__":
 
         df_all.to_csv(os.path.join(outdir, "all_agent_results.csv"), index=False)
         df_mean.to_csv(os.path.join(outdir, "reward_intervention_surface_data.csv"), index=False)
+        write_numbers_summary(df_mean, outdir)
 
         plot_delta_v_surface(df_mean, outdir)
         plot_lh_share_surface(df_mean, outdir)

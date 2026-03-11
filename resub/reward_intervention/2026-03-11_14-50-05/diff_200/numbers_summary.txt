@@ -1,0 +1,14 @@
+Red contour definition: V_H - V_L = 0 (learning shift boundary)
+
+Contour summary (interpolated where needed):
+- Minimum required P(H) = 0.046348
+- Maximum required P(H) = 0.433054
+- Maximum reward contrast on contour = 1.250000
+
+Sampled region with learning shifted toward low-reward food (V_H - V_L < 0):
+- P(H) range = 0.05 to 0.40
+- Reward contrast range = 1.00 to 1.25
+
+Red contour definition: L/(L+H) consumption = 0.5
+- Reward contrast 1.0: minimum P(H) = 0.439146, maximum P(H) = 0.439146
+- Reward contrast 2.0: minimum P(H) = 0.313946, maximum P(H) = 0.313946
