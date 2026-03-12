@@ -271,7 +271,7 @@ def plot_sensitivity_bars(sensitivity_df, outdir):
     df_plot["label"] = df_plot["parameter"].map(label_map).fillna(df_plot["parameter"])
 
     fig, ax = plt.subplots(figsize=(6.5, 3.8), constrained_layout=True)
-    colors = plt.cm.viridis(np.linspace(0.2, 0.85, len(df_plot)))
+    colors = plt.cm.coolwarm(np.linspace(0.2, 0.85, len(df_plot)))
     ax.barh(df_plot["label"], df_plot["abs_prcc"], color=colors)
     ax.set_xlabel("|PRCC| with $V_H - V_L$")
     ax.set_ylabel("Parameter")

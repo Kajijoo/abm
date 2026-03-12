@@ -1,8 +1,0 @@
-Red contour definition: V_H - V_L = 0
-
-Contour status:
-- No red contour (no V_H - V_L = 0 crossing) in this run.
-
-Value range:
-- Minimum delta_v = 0.026161140132047
-- Maximum delta_v = 0.9849059593139056

@@ -25,7 +25,7 @@ def run_single_convergence(args):
 
     # run simulation with history
     res = run_vectorized_simulation(
-        theta=1.5,
+        theta=0.5,
         epsilon=0.0,
         p_high=0.9,
         p_low=0.6,
@@ -89,11 +89,11 @@ def run_convergence_experiment():
 # Plotting
 # ================================================================
 def plot_convergence_and_volatility(df_mean, df_vol):
-    cmap = plt.cm.viridis
+    cmap = plt.cm.coolwarm
     colors = {
-        0.1: cmap(0.15),
-        0.3: cmap(0.4),
-        0.6: cmap(0.65),
+        0.1: cmap(0),
+        0.3: cmap(0.2),
+        0.6: cmap(0.7),
         1.0: cmap(0.9)
     }
 
@@ -120,7 +120,7 @@ def plot_convergence_and_volatility(df_mean, df_vol):
     # ---- Volatility plot ----
     ax2 = axes[1]
     ax2.plot(df_vol["alpha"], df_vol["volatility"], marker='o',
-             lw=1.8, color=cmap(0.55))
+             lw=1.8, color=cmap(0.9))
 
     ax2.set_xlabel(r'$\alpha$', fontsize=12)
     ax2.set_ylabel(r'SD of $V_H - V_L$', fontsize=12)

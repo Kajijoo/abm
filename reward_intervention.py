@@ -11,7 +11,7 @@ import pandas as pd
 from vector_model import run_vectorized_learning, run_vectorized_simulation
 
 # ===================== CONFIG =====================
-EPSILON_POST = 0.05
+EPSILON_POST = 0.0
 EPSILON_PRE = 0.0
 STEPS = 100
 N = 100

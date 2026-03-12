@@ -79,8 +79,8 @@ def run_two_phase_trajectory(
 
 def make_plot(df, pre_steps, theta_pre, theta_post, epsilon_pre, epsilon_post, outdir):
     fig, axes = plt.subplots(1, 2, figsize=(6, 3.5), sharey=True, constrained_layout=True)
-    cmap = plt.cm.viridis
-    color_map = {0.0: cmap(0.2), 1.0: cmap(0.85)}
+    cmap = plt.cm.coolwarm
+    color_map = {0.0: cmap(0), 1.0: cmap(0.9)}
 
     panel_specs = [
         ("theta_intervention", axes[0], r"Food environment", fr"$P(H)$: {theta_pre:.1f} $\rightarrow$ {theta_post:.1f}"),
