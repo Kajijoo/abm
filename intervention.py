@@ -59,6 +59,87 @@ def run_single_sim(args):
     )
 
 
+def _contour_crossings(df, value_col, x_col="theta", y_col="epsilon", level=0.0):
+    """Interpolate contour crossings as x-values for each fixed y-value."""
+    crossings = []
+    for y_val, grp in df.groupby(y_col):
+        grp = grp.sort_values(x_col)
+        x = grp[x_col].to_numpy()
+        values = grp[value_col].to_numpy()
+        shifted = values - level
+
+        exact = x[np.isclose(shifted, 0.0, atol=1e-12)]
+        for x0 in exact:
+            crossings.append((float(y_val), float(x0), "exact"))
+
+        for i in range(len(x) - 1):
+            x1, x2 = x[i], x[i + 1]
+            y1, y2 = shifted[i], shifted[i + 1]
+            if y1 == 0.0 or y2 == 0.0:
+                continue
+            if y1 * y2 < 0.0:
+                x0 = x1 - y1 * (x2 - x1) / (y2 - y1)
+                crossings.append((float(y_val), float(x0), "interpolated"))
+
+    if not crossings:
+        return []
+
+    crossings.sort(key=lambda row: (row[0], row[1]))
+    deduped = []
+    for row in crossings:
+        if not deduped or (
+            abs(deduped[-1][0] - row[0]) > 1e-12
+            or abs(deduped[-1][1] - row[1]) > 1e-12
+        ):
+            deduped.append(row)
+    return deduped
+
+
+def write_numbers_summary(df_mean, outdir):
+    path = os.path.join(outdir, "numbers_summary.txt")
+    delta_v_crossings = _contour_crossings(df_mean, "delta_v", level=0.0)
+    df_lh = df_mean.copy()
+    df_lh["lh_share"] = np.clip(df_lh["LH_Ratio"] / (1.0 + df_lh["LH_Ratio"]), 0.0, 1.0)
+    lh_share_crossings = _contour_crossings(df_lh, "lh_share", level=0.5)
+
+    with open(path, "w") as f:
+        f.write("Red contour definition: V_H - V_L = 0\n\n")
+
+        if delta_v_crossings:
+            c_df = pd.DataFrame(delta_v_crossings, columns=["epsilon", "theta_cross", "kind"])
+            f.write("Contour summary (interpolated where needed):\n")
+            f.write(f"- Minimum epsilon needed = {c_df['epsilon'].min():.6f}\n")
+            f.write(f"- Minimum required P(H) = {c_df['theta_cross'].min():.6f}\n")
+            f.write(f"- Maximum required P(H) = {c_df['theta_cross'].max():.6f}\n")
+            f.write(f"- Maximum epsilon on contour = {c_df['epsilon'].max():.6f}\n")
+        else:
+            f.write("Contour status:\n")
+            f.write("- No V_H - V_L = 0 crossing in this run.\n")
+
+        shifted = df_mean[df_mean["delta_v"] < 0.0]
+        f.write("\nSampled region with learning shifted toward low-reward food (V_H - V_L < 0):\n")
+        if shifted.empty:
+            f.write("- None in sampled grid.\n")
+        else:
+            f.write(f"- P(H) range = {shifted['theta'].min():.2f} to {shifted['theta'].max():.2f}\n")
+            f.write(f"- Epsilon range = {shifted['epsilon'].min():.2f} to {shifted['epsilon'].max():.2f}\n")
+
+        f.write("\nRed contour definition: L/(L+H) consumption = 0.5\n")
+        if lh_share_crossings:
+            c_lh = pd.DataFrame(lh_share_crossings, columns=["epsilon", "theta_cross", "kind"])
+            for target_eps in (0.0, 1.0):
+                at_target = c_lh[np.isclose(c_lh["epsilon"], target_eps, atol=1e-12)]
+                if at_target.empty:
+                    f.write(f"- Epsilon {target_eps:.1f}: no 0.5 contour crossing in sampled P(H) range.\n")
+                else:
+                    f.write(
+                        f"- Epsilon {target_eps:.1f}: minimum P(H) = {at_target['theta_cross'].min():.6f}, "
+                        f"maximum P(H) = {at_target['theta_cross'].max():.6f}\n"
+                    )
+        else:
+            f.write("- No L/(L+H) = 0.5 contour crossing in this run.\n")
+
+
 # ---------------------------------------------------------------------
 # Plots
 # ---------------------------------------------------------------------
@@ -195,6 +276,7 @@ def run_experiment(p_high=0.75, p_low=0.5, tag="baseline"):
 
     df.to_csv(f"{outdir}/all_agent_results.csv", index=False)
     df_mean.to_csv(f"{outdir}/deltaV_contour_data.csv", index=False)
+    write_numbers_summary(df_mean, outdir)
 
     plot_lh_ratio_heatmap(df_mean, outdir)
     print(f"Saved results to {outdir}")

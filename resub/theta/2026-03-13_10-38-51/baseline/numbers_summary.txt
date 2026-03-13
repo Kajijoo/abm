@@ -1,0 +1,12 @@
+Red contour definition: V_H - V_L = 0
+
+Contour summary (interpolated where needed):
+- Minimum required P(H) = 0.170676
+- Maximum required P(H) = 0.303675
+- Maximum gamma on contour = 1.000000
+- Gamma 0.0: minimum P(H) = 0.170676, maximum P(H) = 0.170676
+- Gamma 1.0: minimum P(H) = 0.303675, maximum P(H) = 0.303675
+
+Sampled region with learning shifted toward low-reward food (V_H - V_L < 0):
+- P(H) range = 0.00 to 0.30
+- Gamma range = 0.00 to 1.00

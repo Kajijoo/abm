@@ -1,0 +1,11 @@
+Red contour definition: V_H - V_L = 0
+
+Contour status:
+- No V_H - V_L = 0 crossing in this run.
+
+Sampled region with learning shifted toward low-reward food (V_H - V_L < 0):
+- None in sampled grid.
+
+Red contour definition: L/(L+H) consumption = 0.5
+- Epsilon 0.0: minimum P(H) = 0.296711, maximum P(H) = 0.296711
+- Epsilon 1.0: minimum P(H) = 0.641685, maximum P(H) = 0.641685

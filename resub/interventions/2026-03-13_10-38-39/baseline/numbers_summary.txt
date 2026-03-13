@@ -1,0 +1,15 @@
+Red contour definition: V_H - V_L = 0
+
+Contour summary (interpolated where needed):
+- Minimum epsilon needed = 0.150000
+- Minimum required P(H) = 0.038708
+- Maximum required P(H) = 0.215508
+- Maximum epsilon on contour = 1.000000
+
+Sampled region with learning shifted toward low-reward food (V_H - V_L < 0):
+- P(H) range = 0.05 to 0.20
+- Epsilon range = 0.15 to 1.00
+
+Red contour definition: L/(L+H) consumption = 0.5
+- Epsilon 0.0: minimum P(H) = 0.296711, maximum P(H) = 0.296711
+- Epsilon 1.0: minimum P(H) = 0.592969, maximum P(H) = 0.592969
