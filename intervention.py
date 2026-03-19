@@ -210,7 +210,7 @@ def plot_combined(df1, df2, p1, p2):
     ]
 
     cmap = plt.cm.coolwarm
-    vmin_all, vmax_all = -0.5, 1.0
+    vmin_all, vmax_all = -0.25, 1.0
     norm_all = mpl.colors.TwoSlopeNorm(vmin=vmin_all, vcenter=0.0, vmax=vmax_all)
     levels = np.linspace(vmin_all, vmax_all, 21)
 
@@ -235,7 +235,7 @@ def plot_combined(df1, df2, p1, p2):
 
     # Shared colorbar
     cbar = fig.colorbar(cs, ax=axes, orientation='vertical', shrink=0.85,
-                        pad=0.04, ticks=[-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1.0])
+                        pad=0.04, ticks=[-0.25, 0, 0.25, 0.5, 0.75, 1.0])
     cbar.set_label(r'$V_H - V_L$', fontsize=12)
     cbar.ax.tick_params(labelsize=11)
 

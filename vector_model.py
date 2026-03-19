@@ -4,7 +4,6 @@ def build_grid(theta, width, height, rng):
     total_cells = width * height
     total_patches = 2 * total_cells
 
-    # Interpret theta as a direct proportion of high patches (0..1).
     total_h = int(round(total_patches * theta))
     total_h = min(max(total_h, 0), total_patches)
 
@@ -17,6 +16,14 @@ def build_grid(theta, width, height, rng):
     patch_type_flat = np.where(sums == 2, 2, np.where(sums == 0, 0, 1))
     grid = patch_type_flat.reshape(height, width)
     return grid
+
+def build_non_random_grid(theta, width, height, rng):
+    total_cells = width * height
+    total_patches = 2 * total_cells
+
+    total_h = int(round(total_patches * theta))
+    total_h = min(max(total_h, 0), total_patches)
+
 
 
 def _choose_food(ptype, value_high, value_low, epsilon, rng):

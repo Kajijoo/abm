@@ -11,7 +11,7 @@ import pandas as pd
 from vector_model import run_vectorized_learning, run_vectorized_simulation
 
 # ===================== CONFIG =====================
-EPSILON_POST = 0.0
+EPSILON_POST = 0.05
 EPSILON_PRE = 0.0
 STEPS = 100
 N = 100
@@ -221,7 +221,7 @@ def plot_delta_v_surface(df_mean, outdir):
         ax=ax,
         shrink=0.9,
         pad=0.02,
-        ticks=[-0.5, 0.0, 0.5, 1.0],
+        ticks=[-0.2, 0.0, 0.2, 0.4, 0.6, 0.8]
     )
     cbar.set_label(r"$V_H - V_L$", fontsize=11)
     cbar.ax.tick_params(labelsize=10)
@@ -275,7 +275,7 @@ def plot_delta_v_combined(df_150, df_200, outdir):
         orientation="vertical",
         shrink=0.85,
         pad=0.04,
-        ticks=[-0.5, 0.0, 0.5, 1.0],
+        ticks=[-0.2, 0.0, 0.2, 0.4, 0.6, 0.8],
     )
     cbar.set_label(r"$V_H - V_L$", fontsize=12)
     cbar.ax.tick_params(labelsize=11)
